@@ -1,8 +1,8 @@
 module Main exposing (main)
 
 import Browser
-import Html exposing (..)
-import Html.Attributes exposing (..)
+import Html exposing (div, Html)
+import Html.Attributes as Attr
 
 
 main =
@@ -26,8 +26,12 @@ type alias Msg = Int
 
 -- INIT
 
-init : () -> (Model, Cmd msg)
-init _ = (0, Cmd.none)
+init : { origin: String } -> (Model, Cmd msg)
+init flags =
+    let
+        _ = Debug.log "> " flags
+    in
+    (0, Cmd.none)
 
 
 -- UPDATE
@@ -48,6 +52,6 @@ subscriptions model =
 
 view : Model -> Html msg
 view _ =
-  div [ class "parlez-container" ]
-    [ textarea [] []
+  div [ Attr.class "parlez-container" ]
+    [ H.textarea [ Attr.placeholder "What are your thoughts?" ] []
     ]
