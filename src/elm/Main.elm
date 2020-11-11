@@ -53,5 +53,5 @@ subscriptions model =
 view : Model -> Html msg
 view _ =
   div [ Attr.class "parlez-container" ]
-    [ H.textarea [ Attr.placeholder "What are your thoughts?" ] []
+    [ Html.textarea [ Attr.placeholder "What are your thoughts?" ] []
     ]
