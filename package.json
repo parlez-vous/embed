@@ -12,7 +12,7 @@
   "dependencies": {
     "elm-webpack-loader": "^7.0.1",
     "html-webpack-plugin": "^3.2.0",
-    "webpack": "^4.29.0"
+    "webpack": "^5.0.0"
   },
   "devDependencies": {
     "webpack-cli": "^3.2.1",
