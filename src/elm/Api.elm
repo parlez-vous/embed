@@ -6,7 +6,7 @@ module Api exposing
     )
 
 import Api.Input as Input
-import Api.Input.Comment as Comment exposing (CommentTree)
+import Api.Input.Comment as Comment exposing (Comment)
 -- import Api.Output as Output
 import Http
 import Url exposing (Url)

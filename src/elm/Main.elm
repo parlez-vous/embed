@@ -1,12 +1,14 @@
 module Main exposing (main)
 
 import Ant.Css
-import Api
+import Api exposing (Api)
 import Browser
+import Css.ModernNormalize as NormalizeCss
 import Html exposing (div, Html)
 import Html.Attributes as Attr
-import Css.ModernNormalize as NormalizeCss
 import ParlezVousEmbed
+import Task
+import Time
 import Url
 
 
@@ -29,12 +31,15 @@ main =
 
 type Model
     = Ready ParlezVousEmbed.Model
+    | NotReady Api
     | Failed String
 
 
 -- MSG
 
-type Msg = AppMsg ParlezVousEmbed.Msg
+type Msg
+    = AppMsg ParlezVousEmbed.Msg
+    | NewCurrentTime Time.Posix
 
 
 -- INIT
@@ -51,31 +56,56 @@ init flags =
             let
                 api = Api.apiFactory url
 
-                ( embedModel, embedCmd ) = ParlezVousEmbed.init api
+
             in
-            ( Ready embedModel, Cmd.map AppMsg embedCmd )
+            ( NotReady api, Task.perform NewCurrentTime Time.now)
 
 
 -- UPDATE
 
-update : Msg -> Model -> ( Model, Cmd msg )
-update (AppMsg appMsg) model =
-    case model of
-        Failed reason ->
-            ( Failed reason, Cmd.none )
-
-        Ready embedModel ->
-            ( Ready <| ParlezVousEmbed.update appMsg embedModel 
+updateReadyModel : Msg -> ParlezVousEmbed.Model -> ( Model, Cmd msg )
+updateReadyModel msg embedModel =
+    case msg of
+        AppMsg appMsg -> 
+            ( Ready <| ParlezVousEmbed.update appMsg embedModel
             , Cmd.none
             )
+
+        NewCurrentTime time ->
+            ( Ready <| ParlezVousEmbed.setCurrentTime time embedModel
+            , Cmd.none 
+            )
+            
+
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case ( model, msg ) of
+        ( Failed reason, _ ) ->
+            ( Failed reason, Cmd.none )
+
+        ( NotReady api, NewCurrentTime time ) ->
+            let
+                ( embedModel, embedCmd ) = ParlezVousEmbed.init api time
+            in
+            ( Ready embedModel, Cmd.map AppMsg embedCmd )
+
+        ( NotReady api, _ ) ->
+            ( NotReady api, Cmd.none )
+
+
+        ( Ready embedModel, _ ) ->
+            updateReadyModel msg embedModel
+
 
 
 
 -- SUBSCRIPTIONS
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    Sub.none
-
+    let
+        fiveMinutes = 1000 * 60 * 5
+    in
+    Time.every fiveMinutes NewCurrentTime 
 
 
 -- VIEW
@@ -87,6 +117,9 @@ view model =
             case model of
                 Failed reason ->
                     Html.text reason
+
+                NotReady _ ->
+                    div [] []
 
                 Ready embedModel ->
                     ParlezVousEmbed.viewApp embedModel

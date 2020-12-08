@@ -1,15 +1,19 @@
-module ParlezVousEmbed exposing (init, viewApp, Model, Msg, update)
+module ParlezVousEmbed exposing (init, viewApp, Model, Msg, setCurrentTime, update)
 
 import Ant.Input as Input exposing (input)
 import Api exposing (Api)
 import Api.Input as ApiInput
+import Api.Input.Comment exposing (Comment)
 import Html exposing (Html, div)
 import Css exposing (Style, auto, marginRight, marginLeft, maxWidth, pct, px)
 import Css.Media as Media exposing (withMedia)
 import Html.Styled as Styled exposing (toUnstyled, fromUnstyled)
 import Html.Styled.Attributes exposing (css)
 import Http
-
+import RemoteData exposing (WebData)
+import Time
+import UI.Comment exposing (viewCommentBox)
+import Utils exposing (humanReadableTimestamp)
 
 
 {-
@@ -22,7 +26,8 @@ import Http
 
 type alias Model =
     { textAreaValue : String
-    , comments : String
+    , comments : WebData (List Comment)
+    , currentTime : Time.Posix
     }
 
 
@@ -30,18 +35,24 @@ type Msg
     = TextAreaValueChanged String
     | InitialPostCommentsFetched (Result Http.Error ApiInput.InitialCommentResponse)
 
-init : Api -> ( Model, Cmd Msg )
-init api =
+init : Api -> Time.Posix -> ( Model, Cmd Msg )
+init api time =
     let
         initialModel =
             { textAreaValue = ""
-            , comments = ""
+            , comments = RemoteData.Loading
+            , currentTime = time
             }
 
         apiClient = Api.getApiClient api
     in
     (initialModel, apiClient.getPostComments InitialPostCommentsFetched)
 
+
+setCurrentTime : Time.Posix -> Model -> Model
+setCurrentTime time model =
+    { model | currentTime = time
+    }
 
 
 update : Msg -> Model -> Model
@@ -58,7 +69,9 @@ update msg model =
                     let
                         _ = Debug.log "> initial response: " initialCommentResponse
                     in
-                    model
+                    { model | comments =
+                        RemoteData.Success initialCommentResponse.comments
+                    }
 
 
 
@@ -126,6 +139,15 @@ viewApp model =
             |> Input.withPlaceholder "What are your thoughts?"
             |> Input.toHtml model.textAreaValue
 
+        timeStampFormatter = humanReadableTimestamp model.currentTime
+
+        commentBox =
+            viewCommentBox model.comments timeStampFormatter
+
+        contents =
+            [ textArea, commentBox ]
+            |> List.map fromUnstyled
+
         styledAppShell =
             Styled.div
                 [ css
@@ -138,7 +160,7 @@ viewApp model =
                     , mediaQueries.large
                     ]
                 ]
-                [ fromUnstyled textArea ]
+                contents
     in
     toUnstyled styledAppShell 
 

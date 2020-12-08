@@ -1,76 +1,50 @@
-module Api.Input.Comment exposing (CommentTree, commentTreeListDecoder)
+module Api.Input.Comment exposing (Comment, commentTreeListDecoder)
 
 {-| Comment Related Decoders and Types
 -}
 
 import Json.Decode as D exposing (Decoder)
+import Time exposing (Posix)
 
 
-type alias CommentTree =
-    CommentWithReplies 
-        (CommentWithReplies
-            LeafComment 
-        )
-   
-
-
-{-
-type alias WithReplies a =
-    { replies : List a
-    }
-
-type alias Comment a =
-    { a
-        | id : String
-        , anonymousAuthorName : String
-    }
--}
-
-
-type alias CommentWithReplies a =
+type alias Comment =
     { id : String
     , anonymousAuthorName : String
-    , replies : List a
-    }
-        
-        
-type alias LeafComment =
-    { id : String
-    , anonymousAuthorName : String
+    , body : String
+    , replies : Maybe Replies
+    , votes : Int
+    , createdAt : Posix
     }
 
+type Replies = Replies (List Comment)
 
+
+timestampDecoder : Decoder Posix
+timestampDecoder =
+    D.map Time.millisToPosix D.int
+
+
+
+commentTreeDecoder : Decoder Comment
+commentTreeDecoder =
+    D.map6 Comment
+        (D.field "id" D.string)
+        (D.field "anon_author_name" D.string)
+        (D.field "body" D.string)
+        (D.field "replies" repliesDecoder)
+        (D.field "votes" D.int)
+        (D.field "created_at" timestampDecoder)
+
+
+repliesDecoder : Decoder (Maybe Replies)
+repliesDecoder =
+    D.lazy (\_ -> D.list commentTreeDecoder)
+    |> D.map Replies
+    |> D.maybe
     
--- intentionally ommiting type here
-commonFields =
-    { id = D.field "id" D.string
-    , anonymousAuthorName = D.field "anon_author_name" D.string
-    }
 
 
-leafCommentDecoder : Decoder LeafComment
-leafCommentDecoder =
-    D.map2 LeafComment
-        commonFields.id
-        commonFields.anonymousAuthorName
-        
-    
-
-makeCommentTreeDecoder : Decoder a -> Decoder (CommentWithReplies a)
-makeCommentTreeDecoder nextDecoder =
-    D.map3 CommentWithReplies
-        commonFields.id
-        commonFields.anonymousAuthorName
-        (D.field "replies" <| D.list nextDecoder)
-
-
-commentTreeListDecoder : Decoder (List CommentTree)
+commentTreeListDecoder : Decoder (List Comment)
 commentTreeListDecoder =
-    let
-        commentTreeDecoder =
-            makeCommentTreeDecoder
-                (makeCommentTreeDecoder leafCommentDecoder
-                )
-    in
-    D.list commentTreeDecoder
+    D.list commentTreeDecoder 
 

@@ -5,7 +5,7 @@ module Api.Input exposing (apiResponseDecoder, InitialCommentResponse, initialCo
 Includes JSON decoders and types.
 -}
 
-import Api.Input.Comment exposing (CommentTree, commentTreeListDecoder)
+import Api.Input.Comment exposing (Comment, commentTreeListDecoder)
 import Json.Decode as D exposing (Decoder)
 
 
@@ -27,7 +27,7 @@ withSessionToken dataDecoder =
 
 
 type alias InitialCommentResponse =
-    { comments : List CommentTree
+    { comments : List Comment
     , leafIds : List String
     , siteVerified : Bool
     , postId : String
