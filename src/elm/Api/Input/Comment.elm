@@ -1,4 +1,4 @@
-module Api.Input.Comment exposing (Comment, commentTreeListDecoder, Replies, getReplies)
+module Api.Input.Comment exposing (Comment, commentTreeListDecoder, Replies(..), getReplies)
 
 {-| Comment Related Decoders and Types
 -}
@@ -56,9 +56,9 @@ intoComment leafIds commentId anonAuthorName body maybeReplies votes createdAt =
                             |> (not << List.isEmpty)
                     in
                     if commentIsALeaf then
-                        RemoteData.NotAsked
-                    else
                         RemoteData.Success <| Replies []
+                    else
+                        RemoteData.NotAsked
     in
     Comment commentId anonAuthorName body repliesRemoteData votes createdAt
     

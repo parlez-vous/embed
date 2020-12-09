@@ -41,25 +41,6 @@ secondaryText val =
     |> renderText
 
 
-viewComments : TimeFormatter -> WebData (List Comment) -> StyledHtml msg
-viewComments formatter webDataReplies =
-    case webDataReplies of
-        RemoteData.Success comments ->
-            if List.length comments == 0 then
-                S.div [] []
-            else
-                S.div
-                    [ css [ marginLeft (px 15) ] ]
-                    (List.map (viewSingleComment formatter) comments)
-
-        RemoteData.NotAsked ->
-            S.div [] [ S.text "load more comments" ]
-
-        RemoteData.Failure _ ->
-            S.div [] [ S.text "something went wrong" ]
-
-        RemoteData.Loading ->
-            S.div [] [ S.text "loading" ]
 
 
 viewSingleComment : TimeFormatter -> Comment -> StyledHtml msg
@@ -84,8 +65,29 @@ viewSingleComment formatter comment =
         ]
 
 
-viewCommentBox : WebData (List Comment) -> TimeFormatter -> Html msg
-viewCommentBox webDataComments formatter =
+viewComments : TimeFormatter -> WebData (List Comment) -> StyledHtml msg
+viewComments formatter webDataReplies =
+    case webDataReplies of
+        RemoteData.Success comments ->
+            if List.length comments == 0 then
+                S.div [] []
+            else
+                S.div
+                    [ css [ marginLeft (px 15) ] ]
+                    (List.map (viewSingleComment formatter) comments)
+
+        RemoteData.NotAsked ->
+            S.div [] [ S.text "load more comments" ]
+
+        RemoteData.Failure _ ->
+            S.div [] [ S.text "something went wrong" ]
+
+        RemoteData.Loading ->
+            S.div [] [ S.text "loading" ]
+
+
+viewCommentBox : TimeFormatter -> WebData (List Comment) -> Html msg
+viewCommentBox formatter webDataComments =
     toUnstyled <|
         S.div
             [ css [ marginLeft (px -15) ] ]

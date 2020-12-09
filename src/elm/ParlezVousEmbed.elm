@@ -142,7 +142,7 @@ viewApp model =
         timeStampFormatter = humanReadableTimestamp model.currentTime
 
         commentBox =
-            viewCommentBox model.comments timeStampFormatter
+            viewCommentBox timeStampFormatter model.comments
 
         contents =
             [ textArea, commentBox ]
