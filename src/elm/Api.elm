@@ -70,7 +70,7 @@ makeRequestUrl (Api url) routePath =
 
 
 type alias GetPostComments msg =
-    ToMsg Input.InitialCommentResponse msg -> Cmd msg
+    ToMsg Input.InitialCommentTree msg -> Cmd msg
 
 getPostComments : Api -> GetPostComments msg
 getPostComments api toMsg =
