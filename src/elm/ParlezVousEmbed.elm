@@ -33,7 +33,7 @@ type alias Model =
 
 type Msg
     = TextAreaValueChanged String
-    | InitialPostCommentsFetched (Result Http.Error ApiInput.InitialCommentResponse)
+    | InitialPostCommentsFetched (Result Http.Error ApiInput.InitialCommentTree)
 
 init : Api -> Time.Posix -> ( Model, Cmd Msg )
 init api time =
