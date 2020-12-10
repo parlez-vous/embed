@@ -13,7 +13,6 @@ import Time
 
 
 
-
 json : String
 json = """{
     "data": {
@@ -86,7 +85,7 @@ json = """{
 
 decoder : Decoder Input.InitialCommentTree
 decoder =
-    Input.apiResponseDecoder Input.initialCommentsDecoder
+    Input.apiResponseDecoder Input.commentTreeDecoder
 
 
 suite : Test

@@ -2,7 +2,7 @@ module ParlezVousEmbed exposing (init, viewApp, Model, Msg, setCurrentTime, upda
 
 import Ant.Input as Input exposing (input)
 import Api exposing (Api)
-import Api.Input as ApiInput
+import Api.Input exposing (CommentTree)
 import Api.Input.Comment exposing (Comment)
 import Html exposing (Html, div)
 import Css exposing (Style, auto, marginRight, marginLeft, maxWidth, pct, px)
@@ -12,7 +12,7 @@ import Html.Styled.Attributes exposing (css)
 import Http
 import RemoteData exposing (WebData)
 import Time
-import UI.Comment exposing (viewCommentBox)
+import UI.Comment exposing (viewCommentsSection)
 import Utils exposing (humanReadableTimestamp)
 
 
@@ -24,23 +24,29 @@ import Utils exposing (humanReadableTimestamp)
 -}
 
 
+-- There is no such thing as "not asked" for this data type
+type SimpleWebData a 
+    = Loading
+    | Success a
+    | Failure Http.Error
+
 type alias Model =
     { textAreaValue : String
-    , comments : WebData (List Comment)
+    , commentTree : SimpleWebData CommentTree
     , currentTime : Time.Posix
     }
 
 
 type Msg
     = TextAreaValueChanged String
-    | InitialPostCommentsFetched (Result Http.Error ApiInput.InitialCommentTree)
+    | InitialPostCommentsFetched (Result Http.Error CommentTree)
 
 init : Api -> Time.Posix -> ( Model, Cmd Msg )
 init api time =
     let
         initialModel =
             { textAreaValue = ""
-            , comments = RemoteData.Loading
+            , commentTree = Loading
             , currentTime = time
             }
 
@@ -64,13 +70,19 @@ update msg model =
         InitialPostCommentsFetched httpRequestResult ->
             case httpRequestResult of
                 Err e ->
-                    model
+                    let
+                        _ = Debug.log "> Errrrr: " e
+                    in
+                    { model | commentTree =
+                        Failure e
+                    }
+
                 Ok initialCommentResponse ->
                     let
                         _ = Debug.log "> initial response: " initialCommentResponse
                     in
-                    { model | comments =
-                        RemoteData.Success initialCommentResponse.comments
+                    { model | commentTree =
+                        Success initialCommentResponse
                     }
 
 
@@ -138,15 +150,26 @@ viewApp model =
             |> Input.withTextAreaType { rows = 5 }
             |> Input.withPlaceholder "What are your thoughts?"
             |> Input.toHtml model.textAreaValue
+            |> fromUnstyled
 
-        timeStampFormatter = humanReadableTimestamp model.currentTime
 
-        commentBox =
-            viewCommentBox timeStampFormatter model.comments
+        commentsSection =
+            case model.commentTree of
+                Loading ->
+                    Styled.div [] [ Styled.text "loading ..." ]
+
+                Failure _ ->
+                    -- TODO: Send error log to sentry or something
+                    Styled.div [] [ Styled.text "Error while fetching comments" ]
+
+                Success commentTree ->
+                    let
+                        timeStampFormatter = humanReadableTimestamp model.currentTime
+                    in
+                    viewCommentsSection timeStampFormatter commentTree
 
         contents =
-            [ textArea, commentBox ]
-            |> List.map fromUnstyled
+            [ textArea, commentsSection]
 
         styledAppShell =
             Styled.div

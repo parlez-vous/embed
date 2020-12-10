@@ -5,8 +5,7 @@ module Api exposing
     , getApiClient
     )
 
-import Api.Input as Input
-import Api.Input.Comment as Comment exposing (Comment)
+import Api.Input as Input exposing (Comment)
 -- import Api.Output as Output
 import Http
 import Url exposing (Url)
@@ -70,7 +69,7 @@ makeRequestUrl (Api url) routePath =
 
 
 type alias GetPostComments msg =
-    ToMsg Input.InitialCommentTree msg -> Cmd msg
+    ToMsg Input.CommentTree msg -> Cmd msg
 
 getPostComments : Api -> GetPostComments msg
 getPostComments api toMsg =
@@ -78,7 +77,7 @@ getPostComments api toMsg =
         endpointPath = "sites/test.com/posts/chaining-failable-tasks.html/comments"
 
         decoder =
-            Input.apiResponseDecoder Input.initialCommentsDecoder
+            Input.apiResponseDecoder Input.commentTreeDecoder
             
         expect =
             Http.expectJson
