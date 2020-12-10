@@ -1,11 +1,15 @@
 module UI.Comment exposing (viewCommentBox)
 
-import Ant.Typography.Text as Text exposing (Text)
+{-| UI modules for rendering a tree of comments.
+-}
+
+import Ant.Button as Btn exposing (button)
+import Ant.Typography.Text as Text exposing (Text, text)
 import Css exposing (..)
 import Html exposing (Html)
 import Html.Styled as S exposing (toUnstyled, fromUnstyled)
 import Html.Styled.Attributes exposing (css)
-import Api.Input.Comment exposing (Comment, Replies, getReplies)
+import Api.Input.Comment exposing (Comment, getReplies)
 import Time
 import RemoteData exposing (WebData)
 
@@ -21,14 +25,14 @@ renderText = Text.toHtml >> fromUnstyled
 
 strongText : String -> StyledHtml msg
 strongText val =
-    Text.text val
+    text val
     |> Text.strong
     |> renderText
 
 
 primaryText : String -> StyledHtml msg
 primaryText val =
-    Text.text val
+    text val
     |> Text.withType Text.Primary
     |> renderText
 
@@ -36,7 +40,7 @@ primaryText val =
 
 secondaryText : String -> StyledHtml msg
 secondaryText val =
-    Text.text val
+    text val
     |> Text.withType Text.Secondary
     |> renderText
 
@@ -77,7 +81,14 @@ viewComments formatter webDataReplies =
                     (List.map (viewSingleComment formatter) comments)
 
         RemoteData.NotAsked ->
-            S.div [] [ S.text "load more comments" ]
+            let
+                loadMoreBtn =
+                    button "load more comments"
+                    |> Btn.withType Btn.Link
+                    |> Btn.toHtml
+                    |> fromUnstyled
+            in
+            S.div [] [ loadMoreBtn ]
 
         RemoteData.Failure _ ->
             S.div [] [ S.text "something went wrong" ]
