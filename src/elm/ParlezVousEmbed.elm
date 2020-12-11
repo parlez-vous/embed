@@ -12,6 +12,7 @@ import Html.Styled as Styled exposing (toUnstyled, fromUnstyled)
 import Html.Styled.Attributes exposing (css)
 import Http
 import RemoteData
+import Task
 import Time
 import UI.Comment exposing (viewCommentsSection)
 import Utils exposing (humanReadableTimestamp)
@@ -57,7 +58,7 @@ type alias Model =
     { textAreaValue : String
     , commentTree : SimpleWebData CommentTree
     , currentTime : Time.Posix
-    , apiClient : Api.ApiClient Msg
+    , apiClient : Api.ApiClient
     }
 
 
@@ -71,6 +72,13 @@ type Msg
     | RepliesForCommentFetched Cuid (ApiRequestOutcome CommentTree)
     | LoadRepliesForCommentRequested Cuid
 
+    -- This value, which also exists in Main.elm
+    -- is triggered via task (as opposed to a subscription in Main.elm) when adding a new comment.
+    -- This is done in order to ensure that the human
+    -- readable timestamps are relative to the point at which
+    -- the api request was sent to add the comment
+    | NewCurrentTime Time.Posix
+
 
 init : Api -> Time.Posix -> ( Model, Cmd Msg )
 init api time =
@@ -83,9 +91,10 @@ init api time =
             , currentTime = time
             , apiClient = apiClient
             }
-    in
-    (initialModel, apiClient.getPostComments InitialPostCommentsFetched)
 
+        apiRequest = Task.attempt InitialPostCommentsFetched apiClient.getPostComments
+    in
+    (initialModel, apiRequest)
 
 setCurrentTime : Time.Posix -> Model -> Model
 setCurrentTime time model =
@@ -100,6 +109,12 @@ simpleUpdate m = ( m, Cmd.none )
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        NewCurrentTime newTime ->
+            let
+                _ = Debug.log "> new time: " newTime
+            in
+            simpleUpdate <| setCurrentTime newTime model
+
         TextAreaValueChanged newValue ->
             simpleUpdate { model | textAreaValue = newValue }
 
@@ -115,9 +130,6 @@ update msg model =
                         }
 
                 Ok initialCommentResponse ->
-                    let
-                        _ = Debug.log "> initial response: " initialCommentResponse
-                    in
                     simpleUpdate
                         { model | commentTree =
                             Success initialCommentResponse
@@ -183,25 +195,27 @@ update msg model =
                 newCommentTree = mapSimpleWebData updateCommentsInCommentTree model.commentTree
 
                 tagger = RepliesForCommentFetched commentCuid
+
+                apiRequest = Task.attempt tagger (model.apiClient.getRepliesForComment commentCuid)
             in
             -- 1. set this specific comment's replies as RemoteData.Loading
             -- 2. issue Cmd to fetch data 
             ( { model | commentTree = newCommentTree }
-            , model.apiClient.getRepliesForComment commentCuid tagger
+            , apiRequest
             )
 
     
         SubmitComment postId comment ->
             let
-                apiRequest =
-                    model.apiClient.addComment
-                        comment
-                        postId
-                        Nothing
-                        CommentSubmitted
+                getCurrentTimeCmd = Task.perform NewCurrentTime Time.now
 
+                task = 
+                    model.apiClient.addComment comment postId Nothing
+
+                apiRequest = Task.attempt CommentSubmitted task
             in
-            ( model, apiRequest )
+            -- update the time, then send the request
+            ( model, Cmd.batch [ getCurrentTimeCmd, apiRequest ] )
 
 
         -- if comment is a top level comment,

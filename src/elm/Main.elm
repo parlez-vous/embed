@@ -55,8 +55,6 @@ init flags =
         Just url ->
             let
                 api = Api.apiFactory url
-
-
             in
             ( NotReady api, Task.perform NewCurrentTime Time.now)
 
