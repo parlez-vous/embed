@@ -6,6 +6,7 @@ module Api exposing
     )
 
 import Api.Input as Input exposing (Cuid)
+import Api.Output as Output
 
 -- import Api.Output as Output
 import Http
@@ -25,6 +26,7 @@ type alias ToMsg a msg =
 type alias ApiClient msg =
     { getPostComments : GetPostComments msg
     , getRepliesForComment : GetRepliesForComment msg
+    , addComment : AddComment msg
     }
 
 
@@ -36,6 +38,7 @@ getApiClient : Api -> ApiClient msg
 getApiClient api =
     { getPostComments = getPostComments api
     , getRepliesForComment = getRepliesForComment api
+    , addComment = addComment api
     }
 
 
@@ -120,3 +123,35 @@ getRepliesForComment api commentId toMsg =
         , expect = expect
         }
 
+
+type alias AddComment msg =
+    String -> Cuid -> Maybe Cuid -> ToMsg Input.Comment msg -> Cmd msg
+
+
+addComment : Api -> AddComment msg
+addComment api commentContents postId parentCommentId toMsg =
+    let
+        endpointPath = "posts/" ++ postId ++ "/comments"
+        
+        decoder =
+            Input.apiResponseDecoder Input.commentDecoder
+
+        expect =
+            Http.expectJson
+                toMsg
+                decoder
+        
+        body =
+            Output.addCommentBody
+                { body = commentContents
+                , parentCommentId = parentCommentId
+                , anonAuthorName = Nothing
+                , authorId = Nothing
+                }
+
+    in
+    Http.post
+        { url = makeRequestUrl api endpointPath noParams
+        , body = body
+        , expect = expect
+        }

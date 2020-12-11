@@ -1,12 +1,13 @@
 module ParlezVousEmbed exposing (init, viewApp, Model, Msg, setCurrentTime, update)
 
 import Ant.Input as Input exposing (input)
+import Ant.Button as Btn exposing (button, Button)
 import Api exposing (Api)
 import Api.Input exposing (Comment, CommentTree, Cuid)
-import Css exposing (Style, auto, marginRight, marginLeft, maxWidth, pct, px)
+import Css exposing (..)
 import Css.Media as Media exposing (withMedia)
 import Dict
-import Html exposing (Html, div)
+import Html exposing (Html)
 import Html.Styled as Styled exposing (toUnstyled, fromUnstyled)
 import Html.Styled.Attributes exposing (css)
 import Http
@@ -60,10 +61,14 @@ type alias Model =
     }
 
 
+type alias ApiRequestOutcome a = Result Http.Error a
+
 type Msg
     = TextAreaValueChanged String
-    | InitialPostCommentsFetched (Result Http.Error CommentTree)
-    | RepliesForCommentFetched Cuid (Result Http.Error CommentTree)
+    | SubmitComment Cuid String
+    | CommentSubmitted (ApiRequestOutcome Comment)
+    | InitialPostCommentsFetched (ApiRequestOutcome CommentTree)
+    | RepliesForCommentFetched Cuid (ApiRequestOutcome CommentTree)
     | LoadRepliesForCommentRequested Cuid
 
 
@@ -185,6 +190,48 @@ update msg model =
             , model.apiClient.getRepliesForComment commentCuid tagger
             )
 
+    
+        SubmitComment postId comment ->
+            let
+                apiRequest =
+                    model.apiClient.addComment
+                        comment
+                        postId
+                        Nothing
+                        CommentSubmitted
+
+            in
+            ( model, apiRequest )
+
+
+        -- if comment is a top level comment,
+        -- need to update the `topLevelComments` field
+        CommentSubmitted result ->
+            case result of
+                Err e ->
+                    simpleUpdate model
+
+                Ok newComment ->
+                    let
+                        newCommentTreeState =
+                            mapSimpleWebData
+                                (\commentTree ->
+                                    { commentTree
+                                        | topLevelComments =
+                                            -- currently assuming this is always a top-level comment
+                                            newComment.id :: commentTree.topLevelComments
+                                        , comments =
+                                            Dict.insert newComment.id newComment commentTree.comments
+                                    }
+                                ) 
+                                model.commentTree
+
+                    in
+                    simpleUpdate { model | commentTree = newCommentTreeState }
+
+
+
+
 
 
 
@@ -268,10 +315,23 @@ viewApp model =
                     in
                     viewCommentsSection LoadRepliesForCommentRequested timeStampFormatter commentTree
 
-        contents =
-            [ textArea, commentsSection]
+        withMaybeOnclick : SimpleWebData CommentTree -> Button Msg -> Button Msg
+        withMaybeOnclick data btn =
+            case data of
+                Loading -> btn
+                Failure _ -> btn
+                Success commentTree ->
+                    btn
+                    |> Btn.onClick (SubmitComment commentTree.postId model.textAreaValue)
 
-        styledAppShell =
+        submitCommentButton =
+            button "Add Comment"
+            |> Btn.disabled (String.length model.textAreaValue == 0)
+            |> withMaybeOnclick model.commentTree
+            |> Btn.toHtml
+            |> fromUnstyled
+
+        embed =
             Styled.div
                 [ css
                     [ maxWidth (px 800)
@@ -283,7 +343,13 @@ viewApp model =
                     , mediaQueries.large
                     ]
                 ]
-                contents
+                [ Styled.div [ css [ marginBottom (px 10) ] ]
+                    [ Styled.div [ css [ marginBottom (px 10) ] ]
+                        [ textArea ]
+                    , submitCommentButton 
+                    ]
+                , commentsSection
+                ]
     in
-    toUnstyled styledAppShell 
+    toUnstyled embed 
 

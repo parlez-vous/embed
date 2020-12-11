@@ -1,4 +1,12 @@
-module Api.Input exposing (apiResponseDecoder, Comment, CommentMap, CommentTree, commentTreeDecoder, Cuid)
+module Api.Input exposing
+    ( apiResponseDecoder
+    , Comment
+    , CommentMap
+    , CommentTree
+    , commentDecoder
+    , commentTreeDecoder
+    , Cuid
+    )
 
 {-| Represents the Incoming data from the server.
 
@@ -34,7 +42,7 @@ type alias CommentTree =
     { comments : CommentMap
     , topLevelComments : List Cuid
     , siteVerified : Bool
-    , postId : String
+    , postId : Cuid
     }
 
 
