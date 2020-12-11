@@ -197,13 +197,13 @@ update msg model =
                 addCommentTask = 
                     model.apiClient.addComment commentBody postId Nothing
 
+                wrapCommentInTimestamp comment =
+                    Time.now
+                    |> Task.map (\timestamp -> (timestamp, comment))
+
                 tasks =
                     addCommentTask
-                        |> Task.andThen
-                            (\comment ->
-                                Time.now
-                                    |> Task.map (\timestamp -> (timestamp, comment))
-                            )
+                    |> Task.andThen wrapCommentInTimestamp
                     |> Task.attempt CommentSubmitted
             in
             -- update the time, then send the request
