@@ -86,6 +86,8 @@ humanReadableTimestamp reference date =
     in
     if differenceMs < 0 then
         ""
+    else if differenceMs < 1000 then
+        "just now"
     else if differenceMs < one_minute then
         maybePluralizeLabel (msToSec differenceMs) "second"
 

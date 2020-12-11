@@ -67,17 +67,10 @@ type alias ApiRequestOutcome a = Result Http.Error a
 type Msg
     = TextAreaValueChanged String
     | SubmitComment Cuid String
-    | CommentSubmitted (ApiRequestOutcome Comment)
+    | CommentSubmitted (ApiRequestOutcome (Time.Posix, Comment))
     | InitialPostCommentsFetched (ApiRequestOutcome CommentTree)
     | RepliesForCommentFetched Cuid (ApiRequestOutcome CommentTree)
     | LoadRepliesForCommentRequested Cuid
-
-    -- This value, which also exists in Main.elm
-    -- is triggered via task (as opposed to a subscription in Main.elm) when adding a new comment.
-    -- This is done in order to ensure that the human
-    -- readable timestamps are relative to the point at which
-    -- the api request was sent to add the comment
-    | NewCurrentTime Time.Posix
 
 
 init : Api -> Time.Posix -> ( Model, Cmd Msg )
@@ -109,12 +102,6 @@ simpleUpdate m = ( m, Cmd.none )
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        NewCurrentTime newTime ->
-            let
-                _ = Debug.log "> new time: " newTime
-            in
-            simpleUpdate <| setCurrentTime newTime model
-
         TextAreaValueChanged newValue ->
             simpleUpdate { model | textAreaValue = newValue }
 
@@ -205,17 +192,22 @@ update msg model =
             )
 
     
-        SubmitComment postId comment ->
+        SubmitComment postId commentBody ->
             let
-                getCurrentTimeCmd = Task.perform NewCurrentTime Time.now
+                addCommentTask = 
+                    model.apiClient.addComment commentBody postId Nothing
 
-                task = 
-                    model.apiClient.addComment comment postId Nothing
-
-                apiRequest = Task.attempt CommentSubmitted task
+                tasks =
+                    addCommentTask
+                        |> Task.andThen
+                            (\comment ->
+                                Time.now
+                                    |> Task.map (\timestamp -> (timestamp, comment))
+                            )
+                    |> Task.attempt CommentSubmitted
             in
             -- update the time, then send the request
-            ( model, Cmd.batch [ getCurrentTimeCmd, apiRequest ] )
+            ( model, tasks )
 
 
         -- if comment is a top level comment,
@@ -225,7 +217,7 @@ update msg model =
                 Err e ->
                     simpleUpdate model
 
-                Ok newComment ->
+                Ok ( currentTime, newComment ) ->
                     let
                         newCommentTreeState =
                             mapSimpleWebData
@@ -240,8 +232,17 @@ update msg model =
                                 ) 
                                 model.commentTree
 
+                        _ = Debug.log "Times: "
+                            ( "old - " ++ String.fromInt (Time.posixToMillis model.currentTime)
+                            , "new - " ++ String.fromInt (Time.posixToMillis currentTime)
+                            )
+
                     in
-                    simpleUpdate { model | commentTree = newCommentTreeState }
+                    simpleUpdate
+                        { model
+                            | commentTree = newCommentTreeState
+                            , currentTime = currentTime
+                        }
 
 
 
