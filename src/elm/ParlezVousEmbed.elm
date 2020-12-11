@@ -231,12 +231,6 @@ update msg model =
                                     }
                                 ) 
                                 model.commentTree
-
-                        _ = Debug.log "Times: "
-                            ( "old - " ++ String.fromInt (Time.posixToMillis model.currentTime)
-                            , "new - " ++ String.fromInt (Time.posixToMillis currentTime)
-                            )
-
                     in
                     simpleUpdate
                         { model
