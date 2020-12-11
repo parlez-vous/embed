@@ -139,6 +139,8 @@ update msg model =
                         -- i.e. replies to other replies in this api response
                         directRepliesToComment = subCommentTree.topLevelComments
 
+                        -- update the comment in question
+                        -- with the list of children reply ids
                         treeStateUpdate =
                             updateComment 
                                 (\comment ->
@@ -150,15 +152,19 @@ update msg model =
                             mapSimpleWebData
                             (\commentTree ->
                                 let 
+                                    -- run the above mutation
                                     treeWithUpdatedState = treeStateUpdate commentTree
-                                    
-                                    updatedCommentMap = Dict.union subCommentTree.comments commentTree.treeStateUpdate
                                 in
-                                { treeWithUpdatedState | comments = updatedCommentMap }
+                                { treeWithUpdatedState | comments =
+                                    -- add new replies / comments to flattened comment map
+                                    Dict.union subCommentTree.comments treeWithUpdatedState.comments
+                                }
                             )
                             model.commentTree
                     in
-                    simpleUpdate { model | commentTree = newCommentTree }
+                    simpleUpdate
+                        { model | commentTree = newCommentTree 
+                        }
 
         LoadRepliesForCommentRequested commentCuid ->
             let
