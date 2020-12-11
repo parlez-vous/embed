@@ -5,11 +5,12 @@ module Api exposing
     , getApiClient
     )
 
-import Api.Input as Input exposing (Comment)
+import Api.Input as Input exposing (Cuid)
+
 -- import Api.Output as Output
 import Http
 import Url exposing (Url)
-import Url.Builder
+import Url.Builder exposing (QueryParameter)
 
 
 type Api
@@ -23,6 +24,7 @@ type alias ToMsg a msg =
 
 type alias ApiClient msg =
     { getPostComments : GetPostComments msg
+    , getRepliesForComment : GetRepliesForComment msg
     }
 
 
@@ -33,12 +35,15 @@ apiFactory =
 getApiClient : Api -> ApiClient msg
 getApiClient api =
     { getPostComments = getPostComments api
+    , getRepliesForComment = getRepliesForComment api
     }
 
 
+noParams : List QueryParameter
+noParams = []
 
-makeRequestUrl : Api -> String -> String
-makeRequestUrl (Api url) routePath =
+makeRequestUrl : Api -> String -> List QueryParameter -> String
+makeRequestUrl (Api url) routePath queryParams =
     let
         stringifiedUrl =
             let
@@ -63,7 +68,7 @@ makeRequestUrl (Api url) routePath =
     Url.Builder.crossOrigin
         stringifiedUrl
         pathComponents
-        []
+        queryParams
 
 
 
@@ -85,7 +90,33 @@ getPostComments api toMsg =
                 decoder
     in
     Http.get
-        { url = makeRequestUrl api endpointPath
+        { url = makeRequestUrl api endpointPath noParams 
+        , expect = expect
+        }
+
+
+type alias GetRepliesForComment msg =
+    Cuid -> ToMsg Input.CommentTree msg -> Cmd msg
+
+    
+getRepliesForComment : Api -> GetRepliesForComment msg
+getRepliesForComment api commentId toMsg =
+    let
+        endpointPath = "sites/test.com/posts/chaining-failable-tasks.html/comments"
+
+        decoder =
+            Input.apiResponseDecoder Input.commentTreeDecoder
+            
+        expect =
+            Http.expectJson
+                toMsg
+                decoder
+
+        queryParams =
+            [ Url.Builder.string "parentCommentId" commentId ]
+    in
+    Http.get
+        { url = makeRequestUrl api endpointPath queryParams 
         , expect = expect
         }
 

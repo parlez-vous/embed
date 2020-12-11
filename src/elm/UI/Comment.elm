@@ -3,11 +3,11 @@ module UI.Comment exposing (viewCommentsSection)
 {-| UI modules for rendering a tree of comments.
 -}
 
-import Ant.Button as Btn exposing (button)
+import Ant.Button as Btn exposing (button, Button)
 import Ant.Typography.Text as Text exposing (Text, text)
 import Api.Input exposing (Comment, CommentTree, CommentMap, Cuid)
 import Css exposing (..)
-import Html.Styled as S exposing (toUnstyled, fromUnstyled)
+import Html.Styled as S exposing (fromUnstyled)
 import Html.Styled.Attributes exposing (css)
 import Time
 import RemoteData exposing (WebData)
@@ -17,11 +17,12 @@ type alias StyledHtml a = S.Html a
 
 type alias TimeFormatter = Time.Posix -> String
 
+type alias FetchReplies msg = Cuid -> msg
 
 
-type CommentPointers
+type CommentPointers msg
     = Simple (List Cuid)
-    | Async (WebData (List Cuid))
+    | Async (WebData (List Cuid), msg)
 
 
 renderText : Text -> StyledHtml msg
@@ -51,9 +52,15 @@ secondaryText val =
 
 
 
+link : String -> Button msg
+link val =
+    button val
+    |> Btn.withType Btn.Link
 
-viewSingleComment : TimeFormatter -> CommentMap -> Comment -> StyledHtml msg
-viewSingleComment formatter commentMap comment =
+
+
+viewSingleComment : FetchReplies msg -> TimeFormatter -> CommentMap -> Comment -> StyledHtml msg
+viewSingleComment makeFetchRepliesAction formatter commentMap comment =
     let
         styles =
             [ marginBottom (px 15)
@@ -63,28 +70,16 @@ viewSingleComment formatter commentMap comment =
             S.span [ css [ marginRight (px 10) ] ]
                 [ strongText comment.anonymousAuthorName
                 ]
+        
+        replyInfo = Async ( comment.replyIds, makeFetchRepliesAction comment.id )
     in
     S.div [ ]
         [ authorName
         , secondaryText <| formatter comment.createdAt
         , S.div [ css styles ] [ primaryText comment.body ]
-        , viewComments formatter (Async comment.replyIds) commentMap
+        , viewComments makeFetchRepliesAction formatter replyInfo commentMap
         ]
 
-
-viewComments_ : TimeFormatter -> List Cuid -> CommentMap -> StyledHtml msg
-viewComments_ formatter pointers commentMap =
-    if List.length pointers == 0 then
-        S.div [] []
-    else
-        let
-            comments =
-                Dict.values commentMap
-                |> List.filter (\comment -> List.member comment.id pointers)
-        in
-        S.div
-            [ css [ marginLeft (px 15) ] ]
-            (List.map (viewSingleComment formatter commentMap) comments)
 
 
 {-| 
@@ -100,39 +95,65 @@ viewComments_ formatter pointers commentMap =
     @arg commentTree
         a flattened hashmap that represents a recursive tree of comments (i.e. just like Reddit)
 -}
-viewComments : TimeFormatter -> CommentPointers -> CommentMap -> StyledHtml msg
-viewComments formatter pointers commentTree =
+viewComments : FetchReplies msg -> TimeFormatter -> CommentPointers msg -> CommentMap -> StyledHtml msg
+viewComments makeFetchRepliesAction formatter pointers commentMap =
+    let
+        viewComments_ : List Cuid -> StyledHtml msg
+        viewComments_ pointerList =
+            if List.length pointerList == 0 then
+                S.div [] []
+            else
+                let
+                    comments =
+                        Dict.values commentMap
+                        |> List.filter (\comment -> List.member comment.id pointerList)
+
+                    viewSingleComment_ =
+                        viewSingleComment makeFetchRepliesAction formatter commentMap
+                in
+                S.div
+                    [ css [ marginLeft (px 15) ] ]
+                    (List.map viewSingleComment_ comments)
+    in
     case pointers of
         Simple pointerList ->
-            viewComments_ formatter pointerList commentTree
+            viewComments_ pointerList
 
-        Async webDataList ->
+        Async ( webDataList, fetchReplies ) ->
             case webDataList of
                 RemoteData.NotAsked ->
                     let
                         loadMoreBtn =
-                            button "load more comments"
-                            |> Btn.withType Btn.Link
+                            link "load more comments"
+                            |> Btn.onClick fetchReplies
                             |> Btn.toHtml
                             |> fromUnstyled
                     in
                     S.div [] [ loadMoreBtn ]
 
                 RemoteData.Loading ->
-                    S.div [] [ S.text "loading" ]
+                    let
+                        disabledLoadingButton =
+                            link "loading..."
+                            |> Btn.disabled True
+                            |> Btn.toHtml
+                            |> fromUnstyled
+                    in
+                    S.div [] [ disabledLoadingButton ]
 
                 RemoteData.Failure e -> 
                     S.div [] [ S.text "error loading more comments" ]
 
                 RemoteData.Success replyPointers ->
-                    viewComments_ formatter replyPointers commentTree
+                    viewComments_ replyPointers
 
 
 
 
-viewCommentsSection : TimeFormatter -> CommentTree -> StyledHtml msg
-viewCommentsSection formatter { topLevelComments, comments }=
+
+viewCommentsSection : FetchReplies msg -> TimeFormatter -> CommentTree -> StyledHtml msg
+viewCommentsSection makeFetchRepliesAction formatter { topLevelComments, comments }=
     S.div
         [ css [ marginLeft (px -15) ] ]
-        [ viewComments formatter (Simple topLevelComments) comments ]
+        [ viewComments makeFetchRepliesAction formatter (Simple topLevelComments) comments ]
 

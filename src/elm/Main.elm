@@ -63,12 +63,15 @@ init flags =
 
 -- UPDATE
 
-updateReadyModel : Msg -> ParlezVousEmbed.Model -> ( Model, Cmd msg )
+updateReadyModel : Msg -> ParlezVousEmbed.Model -> ( Model, Cmd Msg )
 updateReadyModel msg embedModel =
     case msg of
         AppMsg appMsg -> 
-            ( Ready <| ParlezVousEmbed.update appMsg embedModel
-            , Cmd.none
+            let
+                ( newEmbedModel, embedCmd ) = ParlezVousEmbed.update appMsg embedModel
+            in
+            ( Ready newEmbedModel 
+            , Cmd.map AppMsg embedCmd
             )
 
         NewCurrentTime time ->

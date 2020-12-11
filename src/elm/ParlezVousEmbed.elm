@@ -2,15 +2,15 @@ module ParlezVousEmbed exposing (init, viewApp, Model, Msg, setCurrentTime, upda
 
 import Ant.Input as Input exposing (input)
 import Api exposing (Api)
-import Api.Input exposing (CommentTree)
-import Api.Input.Comment exposing (Comment)
-import Html exposing (Html, div)
+import Api.Input exposing (Comment, CommentTree, Cuid)
 import Css exposing (Style, auto, marginRight, marginLeft, maxWidth, pct, px)
 import Css.Media as Media exposing (withMedia)
+import Dict
+import Html exposing (Html, div)
 import Html.Styled as Styled exposing (toUnstyled, fromUnstyled)
 import Html.Styled.Attributes exposing (css)
 import Http
-import RemoteData exposing (WebData)
+import RemoteData
 import Time
 import UI.Comment exposing (viewCommentsSection)
 import Utils exposing (humanReadableTimestamp)
@@ -30,27 +30,54 @@ type SimpleWebData a
     | Success a
     | Failure Http.Error
 
+
+mapSimpleWebData : (a -> b) -> SimpleWebData a -> SimpleWebData b
+mapSimpleWebData f simpleWebData =
+    case simpleWebData of
+        Success data -> Success (f data)
+        Loading -> Loading
+        Failure e -> Failure e
+
+
+
+updateComment : (Comment -> Comment) -> Cuid -> CommentTree -> CommentTree
+updateComment f commentCuid currentTree =
+    let
+        newComments =
+            Dict.update
+            commentCuid
+            (Maybe.map f)
+            currentTree.comments
+    in
+    { currentTree | comments = newComments }
+
+
 type alias Model =
     { textAreaValue : String
     , commentTree : SimpleWebData CommentTree
     , currentTime : Time.Posix
+    , apiClient : Api.ApiClient Msg
     }
 
 
 type Msg
     = TextAreaValueChanged String
     | InitialPostCommentsFetched (Result Http.Error CommentTree)
+    | RepliesForCommentFetched Cuid (Result Http.Error CommentTree)
+    | LoadRepliesForCommentRequested Cuid
+
 
 init : Api -> Time.Posix -> ( Model, Cmd Msg )
 init api time =
     let
+        apiClient = Api.getApiClient api
+
         initialModel =
             { textAreaValue = ""
             , commentTree = Loading
             , currentTime = time
+            , apiClient = apiClient
             }
-
-        apiClient = Api.getApiClient api
     in
     (initialModel, apiClient.getPostComments InitialPostCommentsFetched)
 
@@ -61,11 +88,15 @@ setCurrentTime time model =
     }
 
 
-update : Msg -> Model -> Model
+simpleUpdate : Model -> ( Model, Cmd Msg )
+simpleUpdate m = ( m, Cmd.none )
+
+
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         TextAreaValueChanged newValue ->
-            { model | textAreaValue = newValue }
+            simpleUpdate { model | textAreaValue = newValue }
 
         InitialPostCommentsFetched httpRequestResult ->
             case httpRequestResult of
@@ -73,17 +104,80 @@ update msg model =
                     let
                         _ = Debug.log "> Errrrr: " e
                     in
-                    { model | commentTree =
-                        Failure e
-                    }
+                    simpleUpdate
+                        { model | commentTree =
+                            Failure e
+                        }
 
                 Ok initialCommentResponse ->
                     let
                         _ = Debug.log "> initial response: " initialCommentResponse
                     in
-                    { model | commentTree =
-                        Success initialCommentResponse
-                    }
+                    simpleUpdate
+                        { model | commentTree =
+                            Success initialCommentResponse
+                        }
+
+        RepliesForCommentFetched commentCuid httpRequestResult ->
+            case httpRequestResult of
+                Err e ->
+                    let
+                        _ = Debug.log "> Errrrr2: " e
+                    in
+                    simpleUpdate
+                        { model | commentTree =
+                            Failure e
+                        }
+
+                -- 1. update this specific comment's reply list
+                -- 2. append the new comments to the comment map
+                Ok subCommentTree ->
+                    let
+                        -- "topLevelComments" in this case represents
+                        -- direct children of the parent comment in question.
+                        -- all other comments are 2nd or 3rd level descendants
+                        -- i.e. replies to other replies in this api response
+                        directRepliesToComment = subCommentTree.topLevelComments
+
+                        treeStateUpdate =
+                            updateComment 
+                                (\comment ->
+                                    { comment | replyIds = RemoteData.Success directRepliesToComment }
+                                )
+                                commentCuid
+
+                        newCommentTree =
+                            mapSimpleWebData
+                            (\commentTree ->
+                                let 
+                                    treeWithUpdatedState = treeStateUpdate commentTree
+                                    
+                                    updatedCommentMap = Dict.union subCommentTree.comments commentTree.treeStateUpdate
+                                in
+                                { treeWithUpdatedState | comments = updatedCommentMap }
+                            )
+                            model.commentTree
+                    in
+                    simpleUpdate { model | commentTree = newCommentTree }
+
+        LoadRepliesForCommentRequested commentCuid ->
+            let
+                updateCommentsInCommentTree =
+                    updateComment 
+                        (\comment ->
+                            { comment | replyIds = RemoteData.Loading }
+                        )
+                        commentCuid
+
+                newCommentTree = mapSimpleWebData updateCommentsInCommentTree model.commentTree
+
+                tagger = RepliesForCommentFetched commentCuid
+            in
+            -- 1. set this specific comment's replies as RemoteData.Loading
+            -- 2. issue Cmd to fetch data 
+            ( { model | commentTree = newCommentTree }
+            , model.apiClient.getRepliesForComment commentCuid tagger
+            )
 
 
 
@@ -166,7 +260,7 @@ viewApp model =
                     let
                         timeStampFormatter = humanReadableTimestamp model.currentTime
                     in
-                    viewCommentsSection timeStampFormatter commentTree
+                    viewCommentsSection LoadRepliesForCommentRequested timeStampFormatter commentTree
 
         contents =
             [ textArea, commentsSection]
