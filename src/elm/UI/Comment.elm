@@ -4,7 +4,7 @@ module UI.Comment exposing (viewCommentsSection)
 -}
 
 import Ant.Button as Btn exposing (button, Button)
-import Ant.Input as Input exposing (input)
+import Ant.Input exposing (input)
 import Ant.Typography.Text as Text exposing (Text, text)
 import Css exposing (..)
 import Data.Comment exposing (Comment, CommentTree, CommentMap)
@@ -14,6 +14,7 @@ import Html.Styled.Attributes exposing (css)
 import Html.Styled.Events exposing (onClick)
 import Time
 import RemoteData exposing (WebData)
+import UI.TextArea as TextArea 
 import Utils
 
 type alias StyledHtml a = S.Html a
@@ -22,6 +23,7 @@ type alias TimeFormatter = Time.Posix -> String
 type alias Effects msg =
     { loadRepliesForComment : Cuid -> msg
     , updateComment : Comment -> msg
+    , submitReply : Cuid -> String -> msg
     }
 
 type CommentPointers msg
@@ -81,7 +83,7 @@ commentActionButton value msg =
 replyTextarea : Comment -> Effects msg -> StyledHtml msg
 replyTextarea comment effects =
     let
-        visible = Tuple.first comment.textAreaState
+        ( textAreaVisible, textAreaValue ) = comment.textAreaState
 
         updateTextArea =
             \val ->
@@ -89,13 +91,13 @@ replyTextarea comment effects =
                     { comment | textAreaState =
                         Tuple.mapSecond (always val) comment.textAreaState
                     }
+
+        textArea =
+            TextArea.replyTextArea comment updateTextArea
+            |> TextArea.toHtml (effects.submitReply comment.id textAreaValue)
     in
-    if visible then
-        input updateTextArea
-            |> Input.withTextAreaType { rows = 4 }
-            |> Input.withPlaceholder ("respond to " ++ comment.anonymousAuthorName)
-            |> Input.toHtml (Tuple.second comment.textAreaState)
-            |> fromUnstyled
+    if textAreaVisible then
+        textArea
     else 
         S.text ""
 

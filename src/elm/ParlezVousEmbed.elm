@@ -1,6 +1,5 @@
 module ParlezVousEmbed exposing (init, viewApp, Model, Msg, setCurrentTime, update)
 
-import Ant.Input as Input exposing (input)
 import Ant.Button as Btn exposing (button, Button)
 import Api exposing (Api)
 import Css exposing (..)
@@ -16,6 +15,7 @@ import RemoteData
 import Task
 import Time
 import UI.Comment exposing (viewCommentsSection)
+import UI.TextArea as TextArea exposing (topLevelTextArea)
 import Utils exposing (humanReadableTimestamp)
 
 
@@ -54,7 +54,7 @@ type alias ApiRequestOutcome a = Result Http.Error a
 
 type Msg
     = TextAreaValueChanged String
-    | SubmitComment Cuid String
+    | SubmitComment Cuid (Maybe Cuid) String
     | CommentSubmitted (ApiRequestOutcome (Time.Posix, Comment))
     | InitialPostCommentsFetched (ApiRequestOutcome CommentTree)
     | RepliesForCommentFetched Cuid (ApiRequestOutcome CommentTree)
@@ -183,10 +183,10 @@ update msg model =
             )
 
     
-        SubmitComment postId commentBody ->
+        SubmitComment postId maybeParentCommentId commentBody ->
             let
                 addCommentTask = 
-                    model.apiClient.addComment commentBody postId Nothing
+                    model.apiClient.addComment commentBody postId maybeParentCommentId
 
                 wrapCommentInTimestamp comment =
                     Time.now
@@ -302,21 +302,12 @@ mediaQueries =
 viewApp : Model -> Html Msg
 viewApp model =
     let
-        textArea =
-            input TextAreaValueChanged
-            |> Input.withTextAreaType { rows = 5 }
-            |> Input.withPlaceholder "What are your thoughts?"
-            |> Input.toHtml model.textAreaValue
-            |> fromUnstyled
-
-
-        commentsSection =
+        embedContents =
             case model.commentTree of
                 Loading ->
                     Styled.div [] [ Styled.text "loading ..." ]
 
                 Failure _ ->
-                    -- TODO: Send error log to sentry or something
                     Styled.div [] [ Styled.text "Error while fetching comments" ]
 
                 Success commentTree ->
@@ -326,25 +317,25 @@ viewApp model =
                         actions =
                             { loadRepliesForComment = LoadRepliesForCommentRequested
                             , updateComment = CommentChanged
+                            , submitReply = \commentId value ->
+                                SubmitComment commentTree.postId (Just commentId) value
                             }
+
+                        commentsSection =
+                            viewCommentsSection actions timeStampFormatter commentTree
+
+                        textAreaAction =
+                            SubmitComment commentTree.postId Nothing model.textAreaValue
+
+                        textArea =
+                            topLevelTextArea TextAreaValueChanged model.textAreaValue
+                            |> TextArea.toHtml textAreaAction
                     in
-                    viewCommentsSection actions timeStampFormatter commentTree
-
-        withMaybeOnclick : SimpleWebData CommentTree -> Button Msg -> Button Msg
-        withMaybeOnclick data btn =
-            case data of
-                Loading -> btn
-                Failure _ -> btn
-                Success commentTree ->
-                    btn
-                    |> Btn.onClick (SubmitComment commentTree.postId model.textAreaValue)
-
-        submitCommentButton =
-            button "Add Comment"
-            |> Btn.disabled (String.length model.textAreaValue == 0)
-            |> withMaybeOnclick model.commentTree
-            |> Btn.toHtml
-            |> fromUnstyled
+                    Styled.div []
+                        [ Styled.div [ css [ marginBottom (px 10) ] ]
+                            [ textArea ]
+                        , commentsSection 
+                        ]
 
         embed =
             Styled.div
@@ -358,12 +349,7 @@ viewApp model =
                     , mediaQueries.large
                     ]
                 ]
-                [ Styled.div [ css [ marginBottom (px 10) ] ]
-                    [ Styled.div [ css [ marginBottom (px 10) ] ]
-                        [ textArea ]
-                    , submitCommentButton 
-                    ]
-                , commentsSection
+                [ embedContents
                 ]
     in
     toUnstyled embed 
