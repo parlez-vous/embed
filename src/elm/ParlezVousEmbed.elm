@@ -185,6 +185,7 @@ update msg model =
     
         SubmitComment postId maybeParentCommentId commentBody ->
             let
+                -- Task Stuff 
                 addCommentTask = 
                     model.apiClient.addComment commentBody postId maybeParentCommentId
 
@@ -317,8 +318,8 @@ viewApp model =
                         actions =
                             { loadRepliesForComment = LoadRepliesForCommentRequested
                             , updateComment = CommentChanged
-                            , submitReply = \commentId value ->
-                                SubmitComment commentTree.postId (Just commentId) value
+                            , submitReply = \commentId replyTextAreaValue ->
+                                SubmitComment commentTree.postId (Just commentId) replyTextAreaValue
                             }
 
                         commentsSection =
