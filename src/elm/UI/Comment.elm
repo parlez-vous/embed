@@ -59,27 +59,18 @@ link val =
     |> Btn.withType Btn.Link
 
 
-
-viewSingleComment : FetchReplies msg -> TimeFormatter -> CommentMap -> Comment -> StyledHtml msg
-viewSingleComment makeFetchRepliesAction formatter commentMap comment =
-    let
-        styles =
-            [ marginBottom (px 15)
+commentActionButton : String -> StyledHtml msg
+commentActionButton value =
+    S.button
+        [ css
+            [ border zero
+            , paddingLeft zero
+            , fontSize (px 11)
             ]
-
-        authorName =
-            S.span [ css [ marginRight (px 10) ] ]
-                [ strongText comment.anonymousAuthorName
-                ]
-        
-        replyInfo = Async ( comment.replyIds, makeFetchRepliesAction comment.id )
-    in
-    S.div [ ]
-        [ authorName
-        , secondaryText <| formatter comment.createdAt
-        , S.div [ css styles ] [ primaryText comment.body ]
-        , viewComments makeFetchRepliesAction formatter replyInfo commentMap
         ]
+        [ S.text value ]
+
+
 
 
 
@@ -107,13 +98,35 @@ viewComments makeFetchRepliesAction formatter pointers commentMap =
                 let
                     comments =
                         Utils.getCommentsFromPointers pointerList commentMap
-
-                    viewSingleComment_ =
-                        viewSingleComment makeFetchRepliesAction formatter commentMap
                 in
                 S.div
                     [ css [ marginLeft (px 15) ] ]
-                    (List.map viewSingleComment_ comments)
+                    (List.map viewSingleComment comments)
+
+
+        viewSingleComment : Comment -> StyledHtml msg
+        viewSingleComment comment =
+            let
+                styles =
+                    [ marginBottom (px 15)
+                    ]
+
+                authorName =
+                    S.span [ css [ marginRight (px 10) ] ]
+                        [ strongText comment.anonymousAuthorName
+                        ]
+                
+                replyInfo = Async ( comment.replyIds, makeFetchRepliesAction comment.id )
+            in
+            S.div [ ]
+                [ authorName
+                , secondaryText <| formatter comment.createdAt
+                , S.div [ css styles ]
+                    [ S.div [] [ primaryText comment.body ]
+                    , commentActionButton "reply"
+                    ]
+                , viewComments makeFetchRepliesAction formatter replyInfo commentMap
+                ]
     in
     case pointers of
         Simple pointerList ->
@@ -146,8 +159,6 @@ viewComments makeFetchRepliesAction formatter pointers commentMap =
 
                 RemoteData.Success replyPointers ->
                     viewComments_ replyPointers
-
-
 
 
 
