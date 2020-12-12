@@ -1,18 +1,18 @@
 module Utils exposing (getCommentsFromPointers, humanReadableTimestamp)
 
-import Api.Input exposing (CommentMap, Comment, Cuid)
+import Data.Comment exposing (CommentMap, Comment)
+import Data.Cuid exposing (Cuid)
 import Dict
 import Time exposing (Posix, posixToMillis)
 
 
 
 
-getCommentsFromPointers : List Cuid -> CommentMap -> List Comment
-getCommentsFromPointers pointerList commentMap =
-    List.map (\cuid -> Dict.get cuid commentMap) pointerList
-    |> List.foldl
-        (\maybeComment comments ->
-            case maybeComment of
+getCommentsFromPointers : CommentMap -> List Cuid -> List Comment
+getCommentsFromPointers commentMap =
+    List.foldl
+        (\cuid comments ->
+            case Dict.get cuid commentMap of
                 Just comment ->
                     comment :: comments
                 Nothing ->

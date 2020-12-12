@@ -4,26 +4,30 @@ module UI.Comment exposing (viewCommentsSection)
 -}
 
 import Ant.Button as Btn exposing (button, Button)
+import Ant.Input as Input exposing (input)
 import Ant.Typography.Text as Text exposing (Text, text)
-import Api.Input exposing (Comment, CommentTree, CommentMap, Cuid)
 import Css exposing (..)
+import Data.Comment exposing (Comment, CommentTree, CommentMap)
+import Data.Cuid exposing (Cuid)
 import Html.Styled as S exposing (fromUnstyled)
 import Html.Styled.Attributes exposing (css)
+import Html.Styled.Events exposing (onClick)
 import Time
 import RemoteData exposing (WebData)
-import Dict
 import Utils
 
 type alias StyledHtml a = S.Html a
-
 type alias TimeFormatter = Time.Posix -> String
 
-type alias FetchReplies msg = Cuid -> msg
-
+type alias Effects msg =
+    { loadRepliesForComment : Cuid -> msg
+    , updateComment : Comment -> msg
+    }
 
 type CommentPointers msg
     = Simple (List Cuid)
     | Async (WebData (List Cuid), msg)
+
 
 
 renderText : Text -> StyledHtml msg
@@ -59,19 +63,41 @@ link val =
     |> Btn.withType Btn.Link
 
 
-commentActionButton : String -> StyledHtml msg
-commentActionButton value =
+commentActionButton : String -> msg -> StyledHtml msg
+commentActionButton value msg =
     S.button
         [ css
             [ border zero
             , paddingLeft zero
             , fontSize (px 11)
             ]
+        , onClick msg
         ]
         [ S.text value ]
 
 
 
+
+replyTextarea : Comment -> Effects msg -> StyledHtml msg
+replyTextarea comment effects =
+    let
+        visible = Tuple.first comment.textAreaState
+
+        updateTextArea =
+            \val ->
+                effects.updateComment
+                    { comment | textAreaState =
+                        Tuple.mapSecond (always val) comment.textAreaState
+                    }
+    in
+    if visible then
+        input updateTextArea
+            |> Input.withTextAreaType { rows = 4 }
+            |> Input.withPlaceholder ("respond to " ++ comment.anonymousAuthorName)
+            |> Input.toHtml (Tuple.second comment.textAreaState)
+            |> fromUnstyled
+    else 
+        S.text ""
 
 
 {-| 
@@ -87,23 +113,26 @@ commentActionButton value =
     @arg commentTree
         a flattened hashmap that represents a recursive tree of comments (i.e. just like Reddit)
 -}
-viewComments : FetchReplies msg -> TimeFormatter -> CommentPointers msg -> CommentMap -> StyledHtml msg
-viewComments makeFetchRepliesAction formatter pointers commentMap =
+viewComments : Effects msg -> TimeFormatter -> CommentPointers msg -> CommentMap -> StyledHtml msg
+viewComments effects formatter pointers commentMap =
     let
         viewComments_ : List Cuid -> StyledHtml msg
         viewComments_ pointerList =
             if List.length pointerList == 0 then
-                S.div [] []
+                S.text ""
             else
                 let
                     comments =
-                        Utils.getCommentsFromPointers pointerList commentMap
+                        Utils.getCommentsFromPointers commentMap pointerList
                 in
                 S.div
-                    [ css [ marginLeft (px 15) ] ]
+                    [ css [ marginLeft (px 15) ]
+                    ]
                     (List.map viewSingleComment comments)
 
 
+        -- this is embedded inside of view comments to
+        -- take advantage of closures
         viewSingleComment : Comment -> StyledHtml msg
         viewSingleComment comment =
             let
@@ -116,16 +145,32 @@ viewComments makeFetchRepliesAction formatter pointers commentMap =
                         [ strongText comment.anonymousAuthorName
                         ]
                 
-                replyInfo = Async ( comment.replyIds, makeFetchRepliesAction comment.id )
+                replyInfo =
+                    Async
+                        ( comment.replyIds
+                        , effects.loadRepliesForComment comment.id
+                        )
+
+                replyButton =
+                    let
+                        update =
+                            effects.updateComment
+                                { comment | textAreaState =
+                                    Tuple.mapFirst not comment.textAreaState
+                                }
+                    in
+                    commentActionButton "reply" update
+
             in
-            S.div [ ]
+            S.div []
                 [ authorName
                 , secondaryText <| formatter comment.createdAt
                 , S.div [ css styles ]
                     [ S.div [] [ primaryText comment.body ]
-                    , commentActionButton "reply"
+                    , replyButton
+                    , replyTextarea comment effects
                     ]
-                , viewComments makeFetchRepliesAction formatter replyInfo commentMap
+                , viewComments effects formatter replyInfo commentMap
                 ]
     in
     case pointers of
@@ -162,9 +207,9 @@ viewComments makeFetchRepliesAction formatter pointers commentMap =
 
 
 
-viewCommentsSection : FetchReplies msg -> TimeFormatter -> CommentTree -> StyledHtml msg
-viewCommentsSection makeFetchRepliesAction formatter { topLevelComments, comments }=
+viewCommentsSection : Effects msg -> TimeFormatter -> CommentTree -> StyledHtml msg
+viewCommentsSection effects formatter { topLevelComments, comments }=
     S.div
         [ css [ marginLeft (px -15) ] ]
-        [ viewComments makeFetchRepliesAction formatter (Simple topLevelComments) comments ]
+        [ viewComments effects formatter (Simple topLevelComments) comments ]
 

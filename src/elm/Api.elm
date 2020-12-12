@@ -5,11 +5,11 @@ module Api exposing
     , getApiClient
     )
 
-import Api.Input as Input exposing (Cuid)
 import Api.Output as Output
-
--- import Api.Output as Output
+import Data.Comment exposing (Comment, CommentTree)
+import Data.Cuid exposing (Cuid)
 import Http
+import Api.Input as Input
 import Json.Decode as D exposing (Decoder)
 import Task exposing (Task)
 import Url exposing (Url)
@@ -126,7 +126,7 @@ makeRequestUrl (Api url) routePath queryParams =
         queryParams
 
 
-type alias GetPostComments = Task Http.Error Input.CommentTree
+type alias GetPostComments = Task Http.Error CommentTree
 
 getPostComments : Api -> GetPostComments 
 getPostComments api =
@@ -143,7 +143,7 @@ getPostComments api =
 
 
 type alias GetRepliesForComment =
-    Cuid -> Task Http.Error Input.CommentTree
+    Cuid -> Task Http.Error CommentTree
 
     
 getRepliesForComment : Api -> GetRepliesForComment
@@ -163,7 +163,7 @@ getRepliesForComment api commentId =
 
 
 type alias AddComment =
-    String -> Cuid -> Maybe Cuid -> Task Http.Error Input.Comment
+    String -> Cuid -> Maybe Cuid -> Task Http.Error Comment
 
 
 addComment : Api -> AddComment

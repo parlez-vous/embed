@@ -4,10 +4,9 @@ module Api.Output exposing (addCommentBody)
 {-| JSON encoders to send JSON data
 -}
 
-import Api.Input exposing (Cuid)
+import Data.Cuid exposing (Cuid)
 import Http exposing (Body)
 import Json.Encode as E exposing (Value)
-import Http
 
 
 

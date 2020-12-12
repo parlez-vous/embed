@@ -3,9 +3,10 @@ module ParlezVousEmbed exposing (init, viewApp, Model, Msg, setCurrentTime, upda
 import Ant.Input as Input exposing (input)
 import Ant.Button as Btn exposing (button, Button)
 import Api exposing (Api)
-import Api.Input exposing (Comment, CommentTree, Cuid)
 import Css exposing (..)
 import Css.Media as Media exposing (withMedia)
+import Data.Comment exposing (Comment, CommentTree, updateComment)
+import Data.Cuid exposing (Cuid)
 import Dict
 import Html exposing (Html)
 import Html.Styled as Styled exposing (toUnstyled, fromUnstyled)
@@ -41,19 +42,6 @@ mapSimpleWebData f simpleWebData =
         Failure e -> Failure e
 
 
-
-updateComment : (Comment -> Comment) -> Cuid -> CommentTree -> CommentTree
-updateComment f commentCuid currentTree =
-    let
-        newComments =
-            Dict.update
-            commentCuid
-            (Maybe.map f)
-            currentTree.comments
-    in
-    { currentTree | comments = newComments }
-
-
 type alias Model =
     { textAreaValue : String
     , commentTree : SimpleWebData CommentTree
@@ -71,6 +59,9 @@ type Msg
     | InitialPostCommentsFetched (ApiRequestOutcome CommentTree)
     | RepliesForCommentFetched Cuid (ApiRequestOutcome CommentTree)
     | LoadRepliesForCommentRequested Cuid
+    | CommentChanged Comment
+
+
 
 
 init : Api -> Time.Posix -> ( Model, Cmd Msg )
@@ -154,17 +145,17 @@ update msg model =
 
                         newCommentTree =
                             mapSimpleWebData
-                            (\commentTree ->
-                                let 
-                                    -- run the above mutation
-                                    treeWithUpdatedState = treeStateUpdate commentTree
-                                in
-                                { treeWithUpdatedState | comments =
-                                    -- add new replies / comments to flattened comment map
-                                    Dict.union subCommentTree.comments treeWithUpdatedState.comments
-                                }
-                            )
-                            model.commentTree
+                                (\commentTree ->
+                                    let 
+                                        -- run the above mutation
+                                        treeWithUpdatedState = treeStateUpdate commentTree
+                                    in
+                                    { treeWithUpdatedState | comments =
+                                        -- add new replies / comments to flattened comment map
+                                        Dict.union subCommentTree.comments treeWithUpdatedState.comments
+                                    }
+                                )
+                                model.commentTree
                     in
                     simpleUpdate
                         { model | commentTree = newCommentTree 
@@ -226,6 +217,7 @@ update msg model =
                                         | topLevelComments =
                                             -- currently assuming this is always a top-level comment
                                             commentTree.topLevelComments ++ [ newComment.id ]
+
                                         , comments =
                                             Dict.insert newComment.id newComment commentTree.comments
                                     }
@@ -238,7 +230,16 @@ update msg model =
                             , currentTime = currentTime
                         }
 
-
+        CommentChanged comment ->
+            let
+                commentUpdate =
+                    updateComment (always comment) comment.id
+            in
+            simpleUpdate
+                { model | commentTree = 
+                    mapSimpleWebData commentUpdate model.commentTree
+                }
+            
 
 
 
@@ -321,8 +322,13 @@ viewApp model =
                 Success commentTree ->
                     let
                         timeStampFormatter = humanReadableTimestamp model.currentTime
+
+                        actions =
+                            { loadRepliesForComment = LoadRepliesForCommentRequested
+                            , updateComment = CommentChanged
+                            }
                     in
-                    viewCommentsSection LoadRepliesForCommentRequested timeStampFormatter commentTree
+                    viewCommentsSection actions timeStampFormatter commentTree
 
         withMaybeOnclick : SimpleWebData CommentTree -> Button Msg -> Button Msg
         withMaybeOnclick data btn =
