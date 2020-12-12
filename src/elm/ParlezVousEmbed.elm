@@ -225,7 +225,7 @@ update msg model =
                                     { commentTree
                                         | topLevelComments =
                                             -- currently assuming this is always a top-level comment
-                                            newComment.id :: commentTree.topLevelComments
+                                            commentTree.topLevelComments ++ [ newComment.id ]
                                         , comments =
                                             Dict.insert newComment.id newComment commentTree.comments
                                     }

@@ -1,15 +1,40 @@
-module Utils exposing (humanReadableTimestamp)
+module Utils exposing (getCommentsFromPointers, humanReadableTimestamp)
 
+import Api.Input exposing (CommentMap, Comment, Cuid)
+import Dict
 import Time exposing (Posix, posixToMillis)
 
--- if comment is < 1 hour
---   then UI should say, "xminutes ago"
 
--- If comment is < 24hours
---   then UI should say, "xhours ago"
 
--- else
---    then UI should say, "1 day ago" or "x days ago"
+
+getCommentsFromPointers : List Cuid -> CommentMap -> List Comment
+getCommentsFromPointers pointerList commentMap =
+    List.map (\cuid -> Dict.get cuid commentMap) pointerList
+    |> List.foldl
+        (\maybeComment comments ->
+            case maybeComment of
+                Just comment ->
+                    comment :: comments
+                Nothing ->
+                    comments
+        )
+        []
+        
+
+
+
+
+
+
+
+
+
+
+
+
+--- Time Stuff 
+
+
 
 -- Constants 
 

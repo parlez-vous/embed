@@ -12,6 +12,7 @@ import Html.Styled.Attributes exposing (css)
 import Time
 import RemoteData exposing (WebData)
 import Dict
+import Utils
 
 type alias StyledHtml a = S.Html a
 
@@ -105,8 +106,7 @@ viewComments makeFetchRepliesAction formatter pointers commentMap =
             else
                 let
                     comments =
-                        Dict.values commentMap
-                        |> List.filter (\comment -> List.member comment.id pointerList)
+                        Utils.getCommentsFromPointers pointerList commentMap
 
                     viewSingleComment_ =
                         viewSingleComment makeFetchRepliesAction formatter commentMap
