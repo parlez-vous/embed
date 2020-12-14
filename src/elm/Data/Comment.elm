@@ -4,6 +4,7 @@ module Data.Comment exposing
     , CommentTree
     , addNewComment
     , updateComment
+    , setComment
     , getCommentsFromPointers
     )
 
@@ -53,16 +54,6 @@ type alias CommentTree =
     }
 
 
-updateComment : (Comment -> Comment) -> Cuid -> CommentTree -> CommentTree
-updateComment f commentCuid currentTree =
-    let
-        newComments =
-            Dict.update commentCuid (Maybe.map f) currentTree.comments
-    in
-    { currentTree | comments = newComments }
-
-
-
 getCommentsFromPointers : CommentMap -> Set Cuid -> List Comment
 getCommentsFromPointers commentMap =
     Set.foldl
@@ -74,6 +65,21 @@ getCommentsFromPointers commentMap =
                     comments
         )
         []
+
+
+updateComment : (Comment -> Comment) -> Cuid -> CommentTree -> CommentTree
+updateComment f commentCuid currentTree =
+    let
+        newComments =
+            Dict.update commentCuid (Maybe.map f) currentTree.comments
+    in
+    { currentTree | comments = newComments }
+
+
+
+setComment : Comment -> CommentTree -> CommentTree
+setComment comment =
+    updateComment (always comment) comment.id
 
 
 addNewComment : Comment -> CommentTree -> CommentTree

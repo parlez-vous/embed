@@ -18,7 +18,6 @@ import Time
 import UI.Comment exposing (viewCommentsSection)
 import UI.TextArea as TextArea exposing (topLevelTextArea)
 import Utils exposing (humanReadableTimestamp)
-import Data.Comment exposing (addNewComment)
 
 
 {-
@@ -195,31 +194,30 @@ update msg model =
             -- update the time, then send the request
             ( model, tasks )
 
+
         CommentSubmitted result ->
             case result of
                 Err e ->
                     simpleUpdate model
 
-                Ok ( currentTime, newComment )->
+                Ok ( currentTime, newComment ) ->
                     simpleUpdate
                         { model
-                            | commentTree = mapSimpleWebData (addNewComment newComment) model.commentTree
+                            | commentTree =
+                                mapSimpleWebData
+                                    (Comment.addNewComment newComment)
+                                    model.commentTree
                             , currentTime = currentTime
                         }
 
         CommentChanged comment ->
-            let
-                -- TODO: add a `setComment` function since you're replacing the comment entirely here
-                commentUpdate =
-                    updateComment (always comment) comment.id
-            in
             simpleUpdate
                 { model | commentTree = 
-                    mapSimpleWebData commentUpdate model.commentTree
+                    mapSimpleWebData
+                        (Comment.setComment comment)
+                        model.commentTree
                 }
             
-
-
 
 
 
