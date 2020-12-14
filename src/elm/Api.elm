@@ -81,22 +81,6 @@ getTask url resolver =
         , timeout = Nothing
         }
 
-{-
-
-GET /embed/sites/test.com/posts/chaining-failable-tasks.html/comments HTTP/1.1
-Host: localhost:3000
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:83.0) Gecko/20100101 Firefox/83.0
-Accept: */*
-Accept-Language: en-CA,en-US;q=0.7,en;q=0.3
-Accept-Encoding: gzip, deflate
-Origin: http://localhost:8080
-Connection: keep-alive
-Referer: http://localhost:8080/
-Pragma: no-cache
-Cache-Control: no-cache
-
--}
-
 makeRequestUrl : Api -> String -> List QueryParameter -> String
 makeRequestUrl (Api url) routePath queryParams =
     let
