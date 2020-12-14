@@ -4,7 +4,6 @@ module UI.Comment exposing (viewCommentsSection)
 -}
 
 import Ant.Button as Btn exposing (button, Button)
-import Ant.Input exposing (input)
 import Ant.Typography.Text as Text exposing (Text, text)
 import Css exposing (..)
 import Data.Comment exposing (Comment, CommentTree, CommentMap)
@@ -12,8 +11,9 @@ import Data.Cuid exposing (Cuid)
 import Html.Styled as S exposing (fromUnstyled)
 import Html.Styled.Attributes exposing (css)
 import Html.Styled.Events exposing (onClick)
-import Time
 import RemoteData exposing (WebData)
+import Set exposing (Set)
+import Time
 import UI.TextArea as TextArea 
 import Utils
 
@@ -27,8 +27,15 @@ type alias Effects msg =
     }
 
 type CommentPointers msg
-    = Simple (List Cuid)
-    | Async (WebData (List Cuid), msg)
+    = Simple (Set Cuid)
+    | Async 
+        -- loaded ids
+        ( Set Cuid
+        -- buffer state
+        , WebData ()
+        -- "load more" action
+        , msg
+        )
 
 
 
@@ -118,14 +125,14 @@ replyTextarea comment effects =
 viewComments : Effects msg -> TimeFormatter -> CommentPointers msg -> CommentMap -> StyledHtml msg
 viewComments effects formatter pointers commentMap =
     let
-        viewComments_ : List Cuid -> StyledHtml msg
-        viewComments_ pointerList =
-            if List.length pointerList == 0 then
+        viewComments_ : Set Cuid -> StyledHtml msg
+        viewComments_ pointerSet =
+            if Set.isEmpty pointerSet then
                 S.text ""
             else
                 let
                     comments =
-                        Utils.getCommentsFromPointers commentMap pointerList
+                        Utils.getCommentsFromPointers commentMap pointerSet
                 in
                 S.div
                     [ css [ marginLeft (px 15) ]
@@ -148,8 +155,9 @@ viewComments effects formatter pointers commentMap =
                         ]
                 
                 replyInfo =
-                    Async
+                    Async 
                         ( comment.replyIds
+                        , comment.remoteReplyBuffer
                         , effects.loadRepliesForComment comment.id
                         )
 
@@ -176,11 +184,11 @@ viewComments effects formatter pointers commentMap =
                 ]
     in
     case pointers of
-        Simple pointerList ->
-            viewComments_ pointerList
+        Simple pointerSet ->
+            viewComments_ pointerSet
 
-        Async ( webDataList, fetchReplies ) ->
-            case webDataList of
+        Async ( pointerSet, bufferState, fetchReplies ) ->
+            case bufferState of
                 RemoteData.NotAsked ->
                     let
                         loadMoreBtn =
@@ -189,7 +197,10 @@ viewComments effects formatter pointers commentMap =
                             |> Btn.toHtml
                             |> fromUnstyled
                     in
-                    S.div [] [ loadMoreBtn ]
+                    S.div []
+                        [ viewComments_ pointerSet
+                        , loadMoreBtn
+                        ]
 
                 RemoteData.Loading ->
                     let
@@ -199,13 +210,19 @@ viewComments effects formatter pointers commentMap =
                             |> Btn.toHtml
                             |> fromUnstyled
                     in
-                    S.div [] [ disabledLoadingButton ]
+                    S.div []
+                        [ viewComments_ pointerSet
+                        , disabledLoadingButton
+                        ]
 
-                RemoteData.Failure e -> 
-                    S.div [] [ S.text "error loading more comments" ]
+                RemoteData.Failure error -> 
+                    S.div []
+                        [ viewComments_ pointerSet
+                        , S.text "error loading more comments"
+                        ]
 
-                RemoteData.Success replyPointers ->
-                    viewComments_ replyPointers
+                RemoteData.Success _ ->
+                    viewComments_ pointerSet 
 
 
 

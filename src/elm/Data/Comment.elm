@@ -2,23 +2,39 @@ module Data.Comment exposing
     ( Comment
     , CommentMap
     , CommentTree
-    , intoComment
     , updateComment
     )
 
 import Data.Cuid exposing (Cuid)
 import Dict exposing (Dict)
-import RemoteData exposing (WebData)
 import Time exposing (Posix)
+import RemoteData exposing (WebData)
+import Set exposing (Set)
 
 
 type alias TextAreaVisibility = Bool
 
 type alias Comment =
     { id : String
+    , isLeaf : Bool
+    , parentCommentId : Maybe Cuid
     , anonymousAuthorName : String
     , body : String
-    , replyIds : WebData (List Cuid)
+
+    -- CONTEXT REGARDING replyIds + remoteReplyBuffer:
+    --
+    -- Comment replies could be in one of the following states:
+    -- 1. Comment came with all of its children replies 
+    -- 2. Comment did not come with all of its replies (because it's so deeply nested in a comment tree)
+    -- 3. Comment did not come with all of its replies AND we just added a new reply
+    --      Hence you have a "partial" representation of all the replies of that comment
+    --
+    -- The buffer is used to represent the state of remote comments that we are fetching
+    -- hence there is nothing store in the buffer because on RemoteData.Success we take
+    -- the ids and add them to replyIds immediately
+    , replyIds : Set Cuid
+    , remoteReplyBuffer : WebData ()
+
     , votes : Int
     , createdAt : Posix
     , textAreaState : ( TextAreaVisibility, String )
@@ -29,11 +45,10 @@ type alias CommentMap = Dict Cuid Comment
 
 type alias CommentTree =
     { comments : CommentMap
-    , topLevelComments : List Cuid
+    , topLevelComments : Set Cuid
     , siteVerified : Bool
     , postId : Cuid
     }
-
 
 
 updateComment : (Comment -> Comment) -> Cuid -> CommentTree -> CommentTree
@@ -45,30 +60,4 @@ updateComment f commentCuid currentTree =
     { currentTree | comments = newComments }
 
 
-
-intoComment
-    : String
-    -> String
-    -> String
-    -> List String
-    -> Bool
-    -> Int
-    -> Posix
-    -> Comment
-intoComment id anonAuthorName body replyIds isLeaf votes createdAt =
-    let
-        partialComment =
-            Comment id anonAuthorName body
-
-        textAreaVisibility = False
-
-        textAreaState = ( textAreaVisibility, "" )
-
-        commentWithReplyIds =
-            if not isLeaf && List.length replyIds == 0 then
-                partialComment RemoteData.NotAsked
-            else
-                partialComment (RemoteData.Success replyIds)
-    in
-    commentWithReplyIds votes createdAt textAreaState
 

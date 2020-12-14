@@ -1,17 +1,18 @@
 module ParlezVousEmbed exposing (init, viewApp, Model, Msg, setCurrentTime, update)
 
-import Ant.Button as Btn exposing (button, Button)
 import Api exposing (Api)
 import Css exposing (..)
 import Css.Media as Media exposing (withMedia)
-import Data.Comment exposing (Comment, CommentTree, updateComment)
+import Data.Comment as Comment exposing (Comment, CommentTree, updateComment)
 import Data.Cuid exposing (Cuid)
+import Data.SimpleWebData as SimpleWebData exposing (SimpleWebData, mapSimpleWebData)
 import Dict
 import Html exposing (Html)
-import Html.Styled as Styled exposing (toUnstyled, fromUnstyled)
+import Html.Styled as Styled exposing (toUnstyled)
 import Html.Styled.Attributes exposing (css)
 import Http
 import RemoteData
+import Set
 import Task
 import Time
 import UI.Comment exposing (viewCommentsSection)
@@ -25,21 +26,6 @@ import Utils exposing (humanReadableTimestamp)
         i.e. are there even more comments deeply nested in the tree that requires us to do a
         subsequent round trip to the server
 -}
-
-
--- There is no such thing as "not asked" for this data type
-type SimpleWebData a 
-    = Loading
-    | Success a
-    | Failure Http.Error
-
-
-mapSimpleWebData : (a -> b) -> SimpleWebData a -> SimpleWebData b
-mapSimpleWebData f simpleWebData =
-    case simpleWebData of
-        Success data -> Success (f data)
-        Loading -> Loading
-        Failure e -> Failure e
 
 
 type alias Model =
@@ -63,7 +49,6 @@ type Msg
 
 
 
-
 init : Api -> Time.Posix -> ( Model, Cmd Msg )
 init api time =
     let
@@ -71,7 +56,7 @@ init api time =
 
         initialModel =
             { textAreaValue = ""
-            , commentTree = Loading
+            , commentTree = SimpleWebData.Loading
             , currentTime = time
             , apiClient = apiClient
             }
@@ -79,6 +64,7 @@ init api time =
         apiRequest = Task.attempt InitialPostCommentsFetched apiClient.getPostComments
     in
     (initialModel, apiRequest)
+
 
 setCurrentTime : Time.Posix -> Model -> Model
 setCurrentTime time model =
@@ -88,6 +74,71 @@ setCurrentTime time model =
 
 simpleUpdate : Model -> ( Model, Cmd Msg )
 simpleUpdate m = ( m, Cmd.none )
+
+
+addNewComment : ( Time.Posix, Comment ) -> Model -> Model
+addNewComment ( currentTime, newComment ) model =
+    let
+        addNewCommentToCommentMap : CommentTree -> CommentTree
+        addNewCommentToCommentMap tree =
+            { tree
+                | comments =
+                    Dict.insert newComment.id newComment tree.comments
+            }
+
+        addReply : Cuid -> SimpleWebData CommentTree
+        addReply parentCommentId = 
+            let
+                -- updates parent with the new comment's pointer
+                updateParentComment =
+                    updateComment
+                        (\parentComment ->
+                            { parentComment
+                                | replyIds =
+                                    Set.insert newComment.id parentComment.replyIds
+
+                                -- if the parent was a leaf, it not longer will be
+                                , isLeaf = False
+                            }
+                        )
+                        parentCommentId
+
+            in
+            model.commentTree
+            |> mapSimpleWebData updateParentComment
+            |> mapSimpleWebData addNewCommentToCommentMap
+
+
+        -- adding an empty tuple argument to enforce lazyness
+        addTopLevelComment : () -> SimpleWebData CommentTree
+        addTopLevelComment _ =
+            let
+                addNewCommentPointerToTopLevelComments commentTree =
+                    { commentTree
+                        | topLevelComments =
+                            Set.insert newComment.id commentTree.topLevelComments
+                    }
+
+            in
+            model.commentTree
+            |> mapSimpleWebData addNewCommentPointerToTopLevelComments
+            |> mapSimpleWebData addNewCommentToCommentMap
+
+        newCommentTreeState =
+            case newComment.parentCommentId of
+                Just parentCommentId ->
+                    
+                    addReply parentCommentId
+
+                Nothing ->
+                    addTopLevelComment ()
+    in
+    { model
+        | commentTree = newCommentTreeState
+        , currentTime = currentTime
+    }
+
+
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -104,13 +155,13 @@ update msg model =
                     in
                     simpleUpdate
                         { model | commentTree =
-                            Failure e
+                            SimpleWebData.Failure e
                         }
 
                 Ok initialCommentResponse ->
                     simpleUpdate
                         { model | commentTree =
-                            Success initialCommentResponse
+                            SimpleWebData.Success initialCommentResponse
                         }
 
         RepliesForCommentFetched commentCuid httpRequestResult ->
@@ -121,7 +172,7 @@ update msg model =
                     in
                     simpleUpdate
                         { model | commentTree =
-                            Failure e
+                            SimpleWebData.Failure e
                         }
 
                 -- 1. update this specific comment's reply list
@@ -139,7 +190,10 @@ update msg model =
                         treeStateUpdate =
                             updateComment 
                                 (\comment ->
-                                    { comment | replyIds = RemoteData.Success directRepliesToComment }
+                                    { comment
+                                        | replyIds = Set.union comment.replyIds directRepliesToComment
+                                        , remoteReplyBuffer = RemoteData.Success ()
+                                    }
                                 )
                                 commentCuid
 
@@ -166,11 +220,14 @@ update msg model =
                 updateCommentsInCommentTree =
                     updateComment 
                         (\comment ->
-                            { comment | replyIds = RemoteData.Loading }
+                            { comment
+                                | remoteReplyBuffer = RemoteData.Loading
+                            }
                         )
                         commentCuid
 
-                newCommentTree = mapSimpleWebData updateCommentsInCommentTree model.commentTree
+                newCommentTree = 
+                    mapSimpleWebData updateCommentsInCommentTree model.commentTree
 
                 tagger = RepliesForCommentFetched commentCuid
 
@@ -201,38 +258,18 @@ update msg model =
             -- update the time, then send the request
             ( model, tasks )
 
-
-        -- if comment is a top level comment,
-        -- need to update the `topLevelComments` field
         CommentSubmitted result ->
             case result of
                 Err e ->
                     simpleUpdate model
 
-                Ok ( currentTime, newComment ) ->
-                    let
-                        newCommentTreeState =
-                            mapSimpleWebData
-                                (\commentTree ->
-                                    { commentTree
-                                        | topLevelComments =
-                                            -- currently assuming this is always a top-level comment
-                                            commentTree.topLevelComments ++ [ newComment.id ]
-
-                                        , comments =
-                                            Dict.insert newComment.id newComment commentTree.comments
-                                    }
-                                ) 
-                                model.commentTree
-                    in
-                    simpleUpdate
-                        { model
-                            | commentTree = newCommentTreeState
-                            , currentTime = currentTime
-                        }
+                Ok newCommentData ->
+                    addNewComment newCommentData model
+                    |> simpleUpdate
 
         CommentChanged comment ->
             let
+                -- TODO: add a `setComment` function since you're replacing the comment entirely here
                 commentUpdate =
                     updateComment (always comment) comment.id
             in
@@ -241,6 +278,14 @@ update msg model =
                     mapSimpleWebData commentUpdate model.commentTree
                 }
             
+
+
+
+
+
+
+
+
 
 
 
@@ -305,13 +350,13 @@ viewApp model =
     let
         embedContents =
             case model.commentTree of
-                Loading ->
+                SimpleWebData.Loading ->
                     Styled.div [] [ Styled.text "loading ..." ]
 
-                Failure _ ->
+                SimpleWebData.Failure _ ->
                     Styled.div [] [ Styled.text "Error while fetching comments" ]
 
-                Success commentTree ->
+                SimpleWebData.Success commentTree ->
                     let
                         timeStampFormatter = humanReadableTimestamp model.currentTime
 
