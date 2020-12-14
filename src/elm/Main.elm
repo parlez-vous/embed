@@ -14,6 +14,7 @@ import Url
 
 type alias Flags = 
     { apiEndpoint : String
+    , siteUrl : String
     }
 
 
@@ -46,17 +47,18 @@ type Msg
 
 init : Flags -> (Model, Cmd Msg)
 init flags =
-    case Url.fromString flags.apiEndpoint of
-        Nothing ->
-            ( Failed <| "invalid api endpoint url: " ++ flags.apiEndpoint
+    case ( Url.fromString flags.apiEndpoint, Url.fromString flags.siteUrl ) of
+        ( Just apiBaseUrl, Just siteUrl ) ->
+            let
+                api = Api.apiFactory apiBaseUrl siteUrl
+            in
+            ( NotReady api, Task.perform NewCurrentTime Time.now)
+
+        _ ->
+            ( Failed <| "invalid api endpoint or site url: " ++ "(" ++ flags.apiEndpoint ++ ", " ++ flags.siteUrl ++ ")"
             , Cmd.none
             )
 
-        Just url ->
-            let
-                api = Api.apiFactory url
-            in
-            ( NotReady api, Task.perform NewCurrentTime Time.now)
 
 
 -- UPDATE

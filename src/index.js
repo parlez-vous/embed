@@ -6,6 +6,7 @@ Elm.Main.init({
   node: document.getElementById("parlezvous-comments"),
   flags: {
     apiEndpoint,
+    siteUrl: document.location.href,
   }
 });
 

@@ -16,8 +16,10 @@ import Url exposing (Url)
 import Url.Builder exposing (QueryParameter)
 
 
-type Api
-    = Api Url
+type alias Api =
+    { baseUrl : Url
+    , siteUrl : Url
+    }
 
 
 
@@ -28,9 +30,10 @@ type alias ApiClient =
     }
 
 
-apiFactory : Url -> Api
+apiFactory : Url -> Url -> Api
 apiFactory =
     Api
+
 
 getApiClient : Api -> ApiClient 
 getApiClient api =
@@ -81,13 +84,14 @@ getTask url resolver =
         , timeout = Nothing
         }
 
+
 makeRequestUrl : Api -> String -> List QueryParameter -> String
-makeRequestUrl (Api url) routePath queryParams =
+makeRequestUrl { baseUrl } routePath queryParams =
     let
         stringifiedUrl =
             let
                 raw =
-                    Url.toString url
+                    Url.toString baseUrl
             in
             if String.endsWith "/" raw then
                 String.dropRight 1 raw
@@ -110,12 +114,35 @@ makeRequestUrl (Api url) routePath queryParams =
         queryParams
 
 
+type alias SiteInfo =
+    { hostname : String
+    , slug : String
+    }
+
+
+getSiteInfo : Api -> SiteInfo
+getSiteInfo { siteUrl} =
+    { hostname = siteUrl.host
+    , slug = siteUrl.path
+    }
+
+
+
+
+
+
+
+-- Actual API Requests
+
+
 type alias GetPostComments = Task Http.Error CommentTree
 
 getPostComments : Api -> GetPostComments 
 getPostComments api =
     let
-        endpointPath = "sites/test.com/posts/chaining-failable-tasks.html/comments"
+        { hostname, slug } = getSiteInfo api
+        
+        endpointPath = "sites/" ++ hostname ++ "/posts/" ++ slug ++ "/comments"
 
         decoder =
             Input.apiResponseDecoder Input.commentTreeDecoder
@@ -133,7 +160,9 @@ type alias GetRepliesForComment =
 getRepliesForComment : Api -> GetRepliesForComment
 getRepliesForComment api commentId =
     let
-        endpointPath = "sites/test.com/posts/chaining-failable-tasks.html/comments"
+        { hostname, slug } = getSiteInfo api
+        
+        endpointPath = "sites/" ++ hostname ++ "/posts/" ++ slug ++ "/comments"
 
         decoder =
             Input.apiResponseDecoder Input.commentTreeDecoder
