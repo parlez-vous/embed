@@ -86,9 +86,6 @@ update msg model =
         InitialPostCommentsFetched httpRequestResult ->
             case httpRequestResult of
                 Err e ->
-                    let
-                        _ = Debug.log "> Errrrr: " e
-                    in
                     simpleUpdate
                         { model | commentTree =
                             SimpleWebData.Failure e
@@ -103,9 +100,6 @@ update msg model =
         RepliesForCommentFetched commentCuid httpRequestResult ->
             case httpRequestResult of
                 Err e ->
-                    let
-                        _ = Debug.log "> Errrrr2: " e
-                    in
                     simpleUpdate
                         { model | commentTree =
                             SimpleWebData.Failure e
