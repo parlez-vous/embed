@@ -2,6 +2,9 @@
 # Created by https://www.gitignore.io/api/elm,node
 # Edit at https://www.gitignore.io/?templates=elm,node
 
+# build output
+dist/
+
 ### Elm ###
 # elm-package generated files
 elm-stuff

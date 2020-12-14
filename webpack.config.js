@@ -20,7 +20,17 @@ const copyArgs = (args) =>
     {}
   )
 
-module.exports = {
+
+const developmentConfig = {
+  devServer: {
+    inline: true,
+    stats: { colors: true },
+    historyApiFallback: true
+  },
+}
+
+
+const commonConfig = {
   mode,
 
   watch: mode === 'development',
@@ -42,6 +52,9 @@ module.exports = {
         test:    /\.elm$/,
         exclude: [/elm-stuff/, /node_modules/],
         loader:  'elm-webpack-loader',
+        options: {
+          optimize: mode === 'production',
+        }
       },
     ],
 
@@ -63,9 +76,10 @@ module.exports = {
       ]),
     })
   ],
-
-  devServer: {
-    inline: true,
-    stats: { colors: true },
-  },
 };
+
+
+module.exports = mode === 'development'
+  ? { ...commonConfig, ...developmentConfig }
+  : commonConfig;
+
