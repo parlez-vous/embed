@@ -1,36 +1,6 @@
-module Utils exposing (getCommentsFromPointers, humanReadableTimestamp)
+module Utils exposing (humanReadableTimestamp)
 
-import Data.Comment exposing (CommentMap, Comment)
-import Data.Cuid exposing (Cuid)
-import Dict
-import Set exposing (Set)
 import Time exposing (Posix, posixToMillis)
-
-
-
-
-getCommentsFromPointers : CommentMap -> Set Cuid -> List Comment
-getCommentsFromPointers commentMap =
-    Set.foldl
-        (\cuid comments ->
-            case Dict.get cuid commentMap of
-                Just comment ->
-                    comment :: comments
-                Nothing ->
-                    comments
-        )
-        []
-        
-
-
-
-
-
-
-
-
-
-
 
 
 --- Time Stuff 

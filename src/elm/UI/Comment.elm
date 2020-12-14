@@ -6,7 +6,7 @@ module UI.Comment exposing (viewCommentsSection)
 import Ant.Button as Btn exposing (button, Button)
 import Ant.Typography.Text as Text exposing (Text, text)
 import Css exposing (..)
-import Data.Comment exposing (Comment, CommentTree, CommentMap)
+import Data.Comment as Comment exposing (Comment, CommentTree, CommentMap)
 import Data.Cuid exposing (Cuid)
 import Html.Styled as S exposing (fromUnstyled)
 import Html.Styled.Attributes exposing (css)
@@ -15,7 +15,7 @@ import RemoteData exposing (WebData)
 import Set exposing (Set)
 import Time
 import UI.TextArea as TextArea 
-import Utils
+
 
 type alias StyledHtml a = S.Html a
 type alias TimeFormatter = Time.Posix -> String
@@ -132,7 +132,7 @@ viewComments effects formatter pointers commentMap =
             else
                 let
                     comments =
-                        Utils.getCommentsFromPointers commentMap pointerSet
+                        Comment.getCommentsFromPointers commentMap pointerSet
                 in
                 S.div
                     [ css [ marginLeft (px 15) ]

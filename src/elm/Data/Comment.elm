@@ -3,6 +3,7 @@ module Data.Comment exposing
     , CommentMap
     , CommentTree
     , updateComment
+    , getCommentsFromPointers
     )
 
 import Data.Cuid exposing (Cuid)
@@ -60,4 +61,16 @@ updateComment f commentCuid currentTree =
     { currentTree | comments = newComments }
 
 
+
+getCommentsFromPointers : CommentMap -> Set Cuid -> List Comment
+getCommentsFromPointers commentMap =
+    Set.foldl
+        (\cuid comments ->
+            case Dict.get cuid commentMap of
+                Just comment ->
+                    comment :: comments
+                Nothing ->
+                    comments
+        )
+        []
 
