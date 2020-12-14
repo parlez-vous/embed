@@ -2,6 +2,7 @@ module Data.Comment exposing
     ( Comment
     , CommentMap
     , CommentTree
+    , addNewComment
     , updateComment
     , getCommentsFromPointers
     )
@@ -73,4 +74,61 @@ getCommentsFromPointers commentMap =
                     comments
         )
         []
+
+
+addNewComment : Comment -> CommentTree -> CommentTree
+addNewComment newComment commentTree =
+    let
+        addNewCommentToCommentMap : CommentTree -> CommentTree
+        addNewCommentToCommentMap tree =
+            { tree
+                | comments =
+                    Dict.insert newComment.id newComment tree.comments
+            }
+
+        addReply : Cuid -> CommentTree
+        addReply parentCommentId = 
+            let
+                -- updates parent with the new comment's pointer
+                updateParentComment =
+                    updateComment
+                        (\parentComment ->
+                            { parentComment
+                                | replyIds =
+                                    Set.insert newComment.id parentComment.replyIds
+
+                                -- if the parent was a leaf, it not longer will be
+                                , isLeaf = False
+                            }
+                        )
+                        parentCommentId
+
+            in
+            commentTree
+            |> updateParentComment
+            |> addNewCommentToCommentMap
+
+
+        -- adding an empty tuple argument to enforce lazyness
+        addTopLevelComment : () -> CommentTree
+        addTopLevelComment _ =
+            let
+                addNewCommentPointerToTopLevelComments tree =
+                    { tree 
+                        | topLevelComments =
+                            Set.insert newComment.id commentTree.topLevelComments
+                    }
+
+            in
+            commentTree
+            |> addNewCommentPointerToTopLevelComments
+            |> addNewCommentToCommentMap
+
+    in
+    case newComment.parentCommentId of
+        Just parentCommentId ->
+            addReply parentCommentId
+
+        Nothing ->
+            addTopLevelComment ()
 

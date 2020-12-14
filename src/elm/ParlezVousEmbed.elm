@@ -18,6 +18,7 @@ import Time
 import UI.Comment exposing (viewCommentsSection)
 import UI.TextArea as TextArea exposing (topLevelTextArea)
 import Utils exposing (humanReadableTimestamp)
+import Data.Comment exposing (addNewComment)
 
 
 {-
@@ -74,70 +75,6 @@ setCurrentTime time model =
 
 simpleUpdate : Model -> ( Model, Cmd Msg )
 simpleUpdate m = ( m, Cmd.none )
-
-
-addNewComment : ( Time.Posix, Comment ) -> Model -> Model
-addNewComment ( currentTime, newComment ) model =
-    let
-        addNewCommentToCommentMap : CommentTree -> CommentTree
-        addNewCommentToCommentMap tree =
-            { tree
-                | comments =
-                    Dict.insert newComment.id newComment tree.comments
-            }
-
-        addReply : Cuid -> SimpleWebData CommentTree
-        addReply parentCommentId = 
-            let
-                -- updates parent with the new comment's pointer
-                updateParentComment =
-                    updateComment
-                        (\parentComment ->
-                            { parentComment
-                                | replyIds =
-                                    Set.insert newComment.id parentComment.replyIds
-
-                                -- if the parent was a leaf, it not longer will be
-                                , isLeaf = False
-                            }
-                        )
-                        parentCommentId
-
-            in
-            model.commentTree
-            |> mapSimpleWebData updateParentComment
-            |> mapSimpleWebData addNewCommentToCommentMap
-
-
-        -- adding an empty tuple argument to enforce lazyness
-        addTopLevelComment : () -> SimpleWebData CommentTree
-        addTopLevelComment _ =
-            let
-                addNewCommentPointerToTopLevelComments commentTree =
-                    { commentTree
-                        | topLevelComments =
-                            Set.insert newComment.id commentTree.topLevelComments
-                    }
-
-            in
-            model.commentTree
-            |> mapSimpleWebData addNewCommentPointerToTopLevelComments
-            |> mapSimpleWebData addNewCommentToCommentMap
-
-        newCommentTreeState =
-            case newComment.parentCommentId of
-                Just parentCommentId ->
-                    
-                    addReply parentCommentId
-
-                Nothing ->
-                    addTopLevelComment ()
-    in
-    { model
-        | commentTree = newCommentTreeState
-        , currentTime = currentTime
-    }
-
 
 
 
@@ -263,9 +200,12 @@ update msg model =
                 Err e ->
                     simpleUpdate model
 
-                Ok newCommentData ->
-                    addNewComment newCommentData model
-                    |> simpleUpdate
+                Ok ( currentTime, newComment )->
+                    simpleUpdate
+                        { model
+                            | commentTree = mapSimpleWebData (addNewComment newComment) model.commentTree
+                            , currentTime = currentTime
+                        }
 
         CommentChanged comment ->
             let
