@@ -201,6 +201,15 @@ update msg model =
                     simpleUpdate model
 
                 Ok ( currentTime, newComment ) ->
+                    let
+                        -- if the comment was a top-level comment then
+                        -- reset the text area
+                        newTextAreaValue =
+                            if Comment.isReply newComment then
+                                model.textAreaValue
+                            else
+                                ""
+                    in
                     simpleUpdate
                         { model
                             | commentTree =
@@ -208,6 +217,7 @@ update msg model =
                                     (Comment.addNewComment newComment)
                                     model.commentTree
                             , currentTime = currentTime
+                            , textAreaValue = newTextAreaValue
                         }
 
         CommentChanged comment ->

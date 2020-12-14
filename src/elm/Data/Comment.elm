@@ -3,6 +3,7 @@ module Data.Comment exposing
     , CommentMap
     , CommentTree
     , addNewComment
+    , isReply
     , updateComment
     , setComment
     , getCommentsFromPointers
@@ -52,6 +53,15 @@ type alias CommentTree =
     , siteVerified : Bool
     , postId : Cuid
     }
+
+
+isReply : Comment -> Bool
+isReply { parentCommentId } =
+    case parentCommentId of
+        Just _ -> True
+        Nothing -> False
+
+
 
 
 getCommentsFromPointers : CommentMap -> Set Cuid -> List Comment
@@ -105,6 +115,9 @@ addNewComment newComment commentTree =
 
                                 -- if the parent was a leaf, it not longer will be
                                 , isLeaf = False
+
+                                -- reset the text area state
+                                , textAreaState = ( False, "" )
                             }
                         )
                         parentCommentId
