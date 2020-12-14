@@ -2,6 +2,8 @@
 # Created by https://www.gitignore.io/api/elm,node
 # Edit at https://www.gitignore.io/?templates=elm,node
 
+.DS_Store
+
 # build output
 dist/
 
