@@ -1,6 +1,7 @@
-const path = require("path");
-const HtmlWebpackPlugin = require('html-webpack-plugin');
+const path = require("path")
+const HtmlWebpackPlugin = require('html-webpack-plugin')
 const { DefinePlugin } = require('webpack')
+
 
 const SOURCE_DIR = path.join(__dirname, 'src')
 
@@ -28,6 +29,9 @@ const developmentConfig = {
     historyApiFallback: true
   },
 }
+
+
+
 
 
 const commonConfig = {
@@ -81,5 +85,5 @@ const commonConfig = {
 
 module.exports = mode === 'development'
   ? { ...commonConfig, ...developmentConfig }
-  : commonConfig;
+  : commonConfig
 
