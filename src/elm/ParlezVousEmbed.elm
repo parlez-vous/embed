@@ -1,6 +1,8 @@
 module ParlezVousEmbed exposing (init, viewApp, Model, Msg, setCurrentTime, update)
 
+import Ant.Button as Btn exposing (button)
 import Api exposing (Api)
+import Browser.Navigation as Nav
 import Css exposing (..)
 import Css.Media as Media exposing (withMedia)
 import Data.Comment as Comment exposing (Comment, CommentTree, updateComment)
@@ -8,7 +10,7 @@ import Data.Cuid exposing (Cuid)
 import Data.SimpleWebData as SimpleWebData exposing (SimpleWebData, mapSimpleWebData)
 import Dict
 import Html exposing (Html)
-import Html.Styled as Styled exposing (toUnstyled)
+import Html.Styled as Styled exposing (toUnstyled, fromUnstyled)
 import Html.Styled.Attributes exposing (css)
 import Http
 import RemoteData
@@ -41,6 +43,7 @@ type alias ApiRequestOutcome a = Result Http.Error a
 type Msg
     = TextAreaValueChanged String
     | SubmitComment Cuid (Maybe Cuid) String
+    | GoToParlezVous
     | CommentSubmitted (ApiRequestOutcome (Time.Posix, Comment))
     | InitialPostCommentsFetched (ApiRequestOutcome CommentTree)
     | RepliesForCommentFetched Cuid (ApiRequestOutcome CommentTree)
@@ -80,6 +83,11 @@ simpleUpdate m = ( m, Cmd.none )
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        GoToParlezVous ->
+            ( model
+            , Nav.load "https://parlezvous.io?ref=embed"
+            )
+
         TextAreaValueChanged newValue ->
             simpleUpdate { model | textAreaValue = newValue }
 
@@ -325,6 +333,25 @@ viewApp model =
                         , commentsSection 
                         ]
 
+        poweredByParlezVous =
+            let
+                poweredByText = button "ParlezVous"
+                    |> Btn.onClick GoToParlezVous
+                    |> Btn.withType Btn.Text
+                    |> Btn.toHtml
+                    |> fromUnstyled
+
+            in
+            Styled.div
+                [ css
+                    [ marginTop (px 25) 
+                    , textAlign center
+                    ]
+                ]
+                [ Styled.a [ css [ cursor pointer ] ]
+                    [ poweredByText ]
+                ]
+
         embed =
             Styled.div
                 [ css
@@ -338,6 +365,7 @@ viewApp model =
                     ]
                 ]
                 [ embedContents
+                , poweredByParlezVous
                 ]
     in
     toUnstyled embed 
