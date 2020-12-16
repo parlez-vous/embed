@@ -26,7 +26,10 @@ const developmentConfig = {
   devServer: {
     inline: true,
     stats: { colors: true },
-    historyApiFallback: true
+    historyApiFallback: true,
+    allowedHosts: [
+      'dev.parlezvous.io',
+    ],
   },
 }
 
@@ -48,6 +51,7 @@ const commonConfig = {
   output: {
     path: path.resolve(__dirname + '/dist'),
     filename: '[name].js',
+    publicPath: mode === 'development' ? '/' : undefined,
   },
 
   module: {
