@@ -12,7 +12,7 @@ Includes JSON decoders and types.
 import Data.Comment exposing (Comment, CommentTree)
 import Json.Decode as D exposing (Decoder)
 import Time exposing (Posix)
-import Set exposing (Set)
+import Set
 import RemoteData
 
 
