@@ -14,6 +14,7 @@ import Json.Decode as D exposing (Decoder)
 import Task exposing (Task)
 import Url exposing (Url)
 import Url.Builder exposing (QueryParameter)
+import Utils
 
 
 type alias Api =
@@ -116,14 +117,14 @@ makeRequestUrl { baseUrl } routePath queryParams =
 
 type alias SiteInfo =
     { hostname : String
-    , slug : String
+    , path : String
     }
 
 
 getSiteInfo : Api -> SiteInfo
 getSiteInfo { siteUrl} =
     { hostname = siteUrl.host
-    , slug = siteUrl.path
+    , path = Utils.getPathFromUrl siteUrl
     }
 
 
@@ -140,15 +141,18 @@ type alias GetPostComments = Task Http.Error CommentTree
 getPostComments : Api -> GetPostComments 
 getPostComments api =
     let
-        { hostname, slug } = getSiteInfo api
+        { hostname, path } = getSiteInfo api
         
-        endpointPath = "sites/" ++ hostname ++ "/posts/" ++ slug ++ "/comments"
+        endpointPath = "sites/" ++ hostname ++ "/comments"
 
         decoder =
             Input.apiResponseDecoder Input.commentTreeDecoder
+
+        queryParams =
+            [ Url.Builder.string "postId" path ]
     in
     getTask
-        (makeRequestUrl api endpointPath noParams)
+        (makeRequestUrl api endpointPath queryParams)
         (requestResolver decoder)
 
 
@@ -160,15 +164,17 @@ type alias GetRepliesForComment =
 getRepliesForComment : Api -> GetRepliesForComment
 getRepliesForComment api commentId =
     let
-        { hostname, slug } = getSiteInfo api
+        { hostname, path } = getSiteInfo api
         
-        endpointPath = "sites/" ++ hostname ++ "/posts/" ++ slug ++ "/comments"
+        endpointPath = "sites/" ++ hostname ++ "/comments"
 
         decoder =
             Input.apiResponseDecoder Input.commentTreeDecoder
             
         queryParams =
-            [ Url.Builder.string "parentCommentId" commentId ]
+            [ Url.Builder.string "parentCommentId" commentId
+            , Url.Builder.string "postId" path
+            ]
     in
     getTask
         (makeRequestUrl api endpointPath queryParams)

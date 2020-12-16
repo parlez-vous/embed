@@ -8,6 +8,7 @@ import Test exposing (..)
 import Time exposing (Posix)
 
 import Utils
+import Url
 
 
 msBase : Int
@@ -47,62 +48,83 @@ fromNow unit value =
 
 suite : Test
 suite =
-    describe "Utils.humanReadableTimestamp"
-        -- https://discourse.elm-lang.org/t/test-that-msg-is-not-emitted-on-disabled-button/5998
-        [ test "Converts timestamp into seconds from now" <|
-            \_ ->
-                let
-                    createdDate = fromNow Seconds 10
-                    timestamp = Utils.humanReadableTimestamp nowDate createdDate
-                in
-                Expect.equal "10 seconds ago" timestamp
+    describe "Utils module"
+        [ describe "getPathFromUrl"
+            [ test "Returns 'root' for url with no path" <|
+                \_ ->
+                    let
+                        url = Url.fromString "http://dev.parlezvous.io:8080"
 
-        , test "Converts timestamp into minutes from now" <|
-            \_ ->
-                let
-                    createdDate = fromNow Minutes 15
-                    timestamp = Utils.humanReadableTimestamp nowDate createdDate
-                in
-                Expect.equal "15 minutes ago" timestamp
+                        maybeSlug = Maybe.map Utils.getPathFromUrl url
+                    in
+                    Expect.equal (Just "root") maybeSlug
 
-        , test "Converts timestamp into hours from now" <|
-            \_ ->
-                let
-                    createdDate = fromNow Hours 20
-                    timestamp = Utils.humanReadableTimestamp nowDate createdDate
-                in
-                Expect.equal "20 hours ago" timestamp
+            , test "Returns valid path without initial forward slash" <|
+                \_ ->
+                    let
+                        url = Url.fromString "http://dev.parlezvous.io:8080/abc/one-two-three/gio"
 
-        , test "Converts timestamp into days from now" <|
-            \_ ->
-                let
-                    createdDate = fromNow Hours 26
-                    timestamp = Utils.humanReadableTimestamp nowDate createdDate
-                in
-                Expect.equal "1 day ago" timestamp
+                        maybeSlug = Maybe.map Utils.getPathFromUrl url
+                    in
+                    Expect.equal (Just "/abc/one-two-three/gio") maybeSlug
+            ]
 
-        , test "Converts timestamp into weeks from now" <|
-            \_ ->
-                let
-                    createdDate = fromNow Days 26
-                    timestamp = Utils.humanReadableTimestamp nowDate createdDate
-                in
-                Expect.equal "3 weeks ago" timestamp
+        , describe "humanReadableTimestamp"
+            [ test "Converts timestamp into seconds from now" <|
+                \_ ->
+                    let
+                        createdDate = fromNow Seconds 10
+                        timestamp = Utils.humanReadableTimestamp nowDate createdDate
+                    in
+                    Expect.equal "10 seconds ago" timestamp
 
-        , test "Converts timestamp into months from now" <|
-            \_ ->
-                let
-                    createdDate = fromNow Weeks 10
-                    timestamp = Utils.humanReadableTimestamp nowDate createdDate
-                in
-                Expect.equal "2 months ago" timestamp
+            , test "Converts timestamp into minutes from now" <|
+                \_ ->
+                    let
+                        createdDate = fromNow Minutes 15
+                        timestamp = Utils.humanReadableTimestamp nowDate createdDate
+                    in
+                    Expect.equal "15 minutes ago" timestamp
 
-        , test "Converts timestamp into years from now" <|
-            \_ ->
-                let
-                    createdDate = fromNow Weeks 54
-                    timestamp = Utils.humanReadableTimestamp nowDate createdDate
-                in
-                Expect.equal "1 year ago" timestamp
+            , test "Converts timestamp into hours from now" <|
+                \_ ->
+                    let
+                        createdDate = fromNow Hours 20
+                        timestamp = Utils.humanReadableTimestamp nowDate createdDate
+                    in
+                    Expect.equal "20 hours ago" timestamp
+
+            , test "Converts timestamp into days from now" <|
+                \_ ->
+                    let
+                        createdDate = fromNow Hours 26
+                        timestamp = Utils.humanReadableTimestamp nowDate createdDate
+                    in
+                    Expect.equal "1 day ago" timestamp
+
+            , test "Converts timestamp into weeks from now" <|
+                \_ ->
+                    let
+                        createdDate = fromNow Days 26
+                        timestamp = Utils.humanReadableTimestamp nowDate createdDate
+                    in
+                    Expect.equal "3 weeks ago" timestamp
+
+            , test "Converts timestamp into months from now" <|
+                \_ ->
+                    let
+                        createdDate = fromNow Weeks 10
+                        timestamp = Utils.humanReadableTimestamp nowDate createdDate
+                    in
+                    Expect.equal "2 months ago" timestamp
+
+            , test "Converts timestamp into years from now" <|
+                \_ ->
+                    let
+                        createdDate = fromNow Weeks 54
+                        timestamp = Utils.humanReadableTimestamp nowDate createdDate
+                    in
+                    Expect.equal "1 year ago" timestamp
+            ]
         ]
 

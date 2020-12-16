@@ -1,6 +1,16 @@
-module Utils exposing (humanReadableTimestamp)
+module Utils exposing (humanReadableTimestamp, getPathFromUrl)
 
 import Time exposing (Posix, posixToMillis)
+import Url exposing (Url)
+
+
+getPathFromUrl : Url -> String
+getPathFromUrl url =
+    if url.path == "/" then
+        "root"
+    else
+        url.path
+
 
 
 --- Time Stuff 

@@ -6,7 +6,7 @@
   "scripts": {
     "start": "API_ENDPOINT=http://localhost:3000 webpack serve --port 8080",
     "build": "rm -rf ./dist && NODE_ENV=production API_ENDPOINT=https://staging-269700.appspot.com webpack",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "elm-test"
   },
   "author": "",
   "license": "ISC",
