@@ -1,8 +1,20 @@
-module Utils exposing (humanReadableTimestamp, getPathFromUrl)
+port module Utils exposing (humanReadableTimestamp, getPathFromUrl, writeToLocalStorage)
 
 import Time exposing (Posix, posixToMillis)
 import Url exposing (Url)
 
+
+--- Ports
+
+
+-- ( String = key, String = value )
+port writeToLocalStorage : ( String, String ) -> Cmd msg
+
+
+
+
+
+--- URL Utils
 
 getPathFromUrl : Url -> String
 getPathFromUrl url =

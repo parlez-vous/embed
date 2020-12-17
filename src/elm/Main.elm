@@ -18,6 +18,7 @@ import Url
 type alias Flags = 
     { apiEndpoint : String
     , siteUrl : String
+    , anonymousUsername : Maybe String
     }
 
 
@@ -35,7 +36,7 @@ main =
 
 type Model
     = Ready ParlezVousEmbed.Model
-    | NotReady Api
+    | NotReady Api (Maybe String)
     | Failed String
 
 
@@ -55,7 +56,7 @@ init flags =
             let
                 api = Api.apiFactory apiBaseUrl siteUrl
             in
-            ( NotReady api, Task.perform NewCurrentTime Time.now)
+            ( NotReady api flags.anonymousUsername, Task.perform NewCurrentTime Time.now)
 
         _ ->
             ( Failed <| "invalid api endpoint or site url: " ++ "(" ++ flags.apiEndpoint ++ ", " ++ flags.siteUrl ++ ")"
@@ -89,14 +90,14 @@ update msg model =
         ( Failed reason, _ ) ->
             ( Failed reason, Cmd.none )
 
-        ( NotReady api, NewCurrentTime time ) ->
+        ( NotReady api maybeAnonymousUsername, NewCurrentTime time ) ->
             let
-                ( embedModel, embedCmd ) = ParlezVousEmbed.init api time
+                ( embedModel, embedCmd ) = ParlezVousEmbed.init maybeAnonymousUsername api time
             in
             ( Ready embedModel, Cmd.map AppMsg embedCmd )
 
-        ( NotReady api, _ ) ->
-            ( NotReady api, Cmd.none )
+        ( NotReady api maybeAnonymousUsername, _ ) ->
+            ( NotReady api maybeAnonymousUsername, Cmd.none )
 
 
         ( Ready embedModel, _ ) ->
@@ -171,7 +172,7 @@ view model =
                 Failed reason ->
                     Styled.text reason
 
-                NotReady _ ->
+                NotReady _ _ ->
                     Styled.div [] []
 
                 Ready embedModel ->

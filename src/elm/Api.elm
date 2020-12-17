@@ -182,11 +182,11 @@ getRepliesForComment api commentId =
 
 
 type alias AddComment =
-    String -> Cuid -> Maybe Cuid -> Task Http.Error Comment
+    String -> Cuid -> Maybe Cuid -> Maybe String -> Task Http.Error Comment
 
 
 addComment : Api -> AddComment
-addComment api commentContents postId parentCommentId =
+addComment api commentContents postId parentCommentId anonymousAuthorName =
     let
         endpointPath = "posts/" ++ postId ++ "/comments"
         
@@ -197,7 +197,7 @@ addComment api commentContents postId parentCommentId =
             Output.addCommentBody
                 { body = commentContents
                 , parentCommentId = parentCommentId
-                , anonAuthorName = Nothing
+                , anonAuthorName = anonymousAuthorName
                 , authorId = Nothing
                 }
     in

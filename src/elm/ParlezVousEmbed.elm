@@ -33,6 +33,7 @@ type alias Model =
     , commentTree : SimpleWebData CommentTree
     , currentTime : Time.Posix
     , apiClient : Api.ApiClient
+    , anonymousUsername : Maybe String
     }
 
 
@@ -40,18 +41,21 @@ type alias ApiRequestOutcome a = Result Http.Error a
 
 type Msg
     = TextAreaValueChanged String
-    | SubmitComment Cuid (Maybe Cuid) String
-    | GoToParlezVous
+    | SubmitComment (Maybe String) Cuid (Maybe Cuid) String
+    | LoadRepliesForCommentRequested Cuid
     | CommentSubmitted (ApiRequestOutcome (Time.Posix, Comment))
     | InitialPostCommentsFetched (ApiRequestOutcome CommentTree)
     | RepliesForCommentFetched Cuid (ApiRequestOutcome CommentTree)
-    | LoadRepliesForCommentRequested Cuid
+    | GoToParlezVous
+    -- comments have internal state
+    -- (currently text area visibility and text area value)
+    -- this msg represents changes in both of these values
     | CommentChanged Comment
 
 
 
-init : Api -> Time.Posix -> ( Model, Cmd Msg )
-init api time =
+init : Maybe String -> Api -> Time.Posix -> ( Model, Cmd Msg )
+init maybeUsername api time =
     let
         apiClient = Api.getApiClient api
 
@@ -60,6 +64,7 @@ init api time =
             , commentTree = SimpleWebData.Loading
             , currentTime = time
             , apiClient = apiClient
+            , anonymousUsername = maybeUsername
             }
 
         apiRequest = Task.attempt InitialPostCommentsFetched apiClient.getPostComments
@@ -176,11 +181,15 @@ update msg model =
             )
 
     
-        SubmitComment postId maybeParentCommentId commentBody ->
+        SubmitComment maybeAnonymousUsername postId maybeParentCommentId commentBody ->
             let
                 -- Task Stuff 
                 addCommentTask = 
-                    model.apiClient.addComment commentBody postId maybeParentCommentId
+                    model.apiClient.addComment
+                        commentBody
+                        postId
+                        maybeParentCommentId
+                        maybeAnonymousUsername
 
                 wrapCommentInTimestamp comment =
                     Time.now
@@ -209,16 +218,34 @@ update msg model =
                                 model.textAreaValue
                             else
                                 ""
+
+                        newModel =
+                            { model
+                                | commentTree =
+                                    mapSimpleWebData
+                                        (Comment.addNewComment newComment)
+                                        model.commentTree
+                                , currentTime = currentTime
+                                , textAreaValue = newTextAreaValue
+                            }
                     in
-                    simpleUpdate
-                        { model
-                            | commentTree =
-                                mapSimpleWebData
-                                    (Comment.addNewComment newComment)
-                                    model.commentTree
-                            , currentTime = currentTime
-                            , textAreaValue = newTextAreaValue
-                        }
+                    case model.anonymousUsername of
+                        Just _ ->
+                            -- we already have the username in both memory and cached in
+                            -- localstorage
+                            ( newModel, Cmd.none )
+                        
+                        Nothing ->
+                            ( { newModel
+                                | anonymousUsername = Just newComment.anonymousAuthorName 
+                              }
+
+                            , Utils.writeToLocalStorage
+                                ( "anonymousUsername"
+                                , newComment.anonymousAuthorName
+                                )
+                            )
+                            
 
         CommentChanged comment ->
             simpleUpdate
@@ -267,14 +294,14 @@ viewApp model =
                             { loadRepliesForComment = LoadRepliesForCommentRequested
                             , updateComment = CommentChanged
                             , submitReply = \commentId replyTextAreaValue ->
-                                SubmitComment commentTree.postId (Just commentId) replyTextAreaValue
+                                SubmitComment model.anonymousUsername commentTree.postId (Just commentId) replyTextAreaValue
                             }
 
                         commentsSection =
                             viewCommentsSection actions timeStampFormatter commentTree
 
                         textAreaAction =
-                            SubmitComment commentTree.postId Nothing model.textAreaValue
+                            SubmitComment model.anonymousUsername commentTree.postId Nothing model.textAreaValue
 
                         textArea =
                             topLevelTextArea TextAreaValueChanged model.textAreaValue
