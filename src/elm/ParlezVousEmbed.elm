@@ -4,13 +4,11 @@ import Ant.Button as Btn exposing (button)
 import Api exposing (Api)
 import Browser.Navigation as Nav
 import Css exposing (..)
-import Css.Media as Media exposing (withMedia)
 import Data.Comment as Comment exposing (Comment, CommentTree, updateComment)
 import Data.Cuid exposing (Cuid)
 import Data.SimpleWebData as SimpleWebData exposing (SimpleWebData, mapSimpleWebData)
 import Dict
-import Html exposing (Html)
-import Html.Styled as Styled exposing (toUnstyled, fromUnstyled)
+import Html.Styled as Styled exposing (Html, fromUnstyled)
 import Html.Styled.Attributes exposing (css)
 import Http
 import RemoteData
@@ -247,51 +245,6 @@ update msg model =
 ------------------------------------------
 -- View
 
-type alias MediaQueries =
-    { extraSmall : Style
-    , small : Style
-    , medium : Style
-    , large : Style
-    }
-
-
-extraSmallMediaQueries : Style
-extraSmallMediaQueries =
-    withMedia [ Media.only Media.screen [ Media.maxWidth (px 375) ] ]
-        [ maxWidth (pct 95)
-        ]
-
-
-smallMediaQueries : Style
-smallMediaQueries =
-    withMedia [ Media.only Media.screen [ Media.minWidth (px 376), Media.maxWidth (px 640) ] ]
-        [ maxWidth (pct 94)
-        ]
-
-
-mediumMediaQueries : Style
-mediumMediaQueries =
-    withMedia [ Media.only Media.screen [ Media.minWidth (px 641), Media.maxWidth (px 1007) ] ]
-        [ maxWidth (px 600)
-        ]
-
-
-
-largeMediaQueries : Style
-largeMediaQueries =
-    withMedia [ Media.only Media.screen [ Media.minWidth (px 1008) ] ]
-        [ maxWidth (px 800)
-        ]
-
-
-
-mediaQueries : MediaQueries
-mediaQueries =
-    { extraSmall = extraSmallMediaQueries
-    , small = smallMediaQueries
-    , medium = mediumMediaQueries
-    , large = largeMediaQueries
-    }
 
 
 
@@ -351,22 +304,9 @@ viewApp model =
                 [ Styled.a [ css [ cursor pointer ] ]
                     [ poweredByText ]
                 ]
-
-        embed =
-            Styled.div
-                [ css
-                    [ maxWidth (px 800)
-                    , marginRight auto
-                    , marginLeft auto
-                    , mediaQueries.extraSmall
-                    , mediaQueries.small
-                    , mediaQueries.medium
-                    , mediaQueries.large
-                    ]
-                ]
-                [ embedContents
-                , poweredByParlezVous
-                ]
     in
-    toUnstyled embed 
+    Styled.div []
+        [ embedContents
+        , poweredByParlezVous
+        ]
 
