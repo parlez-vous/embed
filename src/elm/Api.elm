@@ -3,14 +3,16 @@ module Api exposing
     , ApiClient
     , apiFactory
     , getApiClient
+    , reportError 
     )
 
 import Api.Output as Output
 import Data.Comment exposing (Comment, CommentTree)
 import Data.Cuid exposing (Cuid)
-import Http
+import Http exposing (Body)
 import Api.Input as Input
 import Json.Decode as D exposing (Decoder)
+import Json.Encode as E
 import Task exposing (Task)
 import Url exposing (Url)
 import Url.Builder exposing (QueryParameter)
@@ -28,7 +30,9 @@ type alias ApiClient =
     { getPostComments : GetPostComments
     , getRepliesForComment : GetRepliesForComment
     , addComment : AddComment 
+    , reportError : ReportError
     }
+
 
 
 apiFactory : Url -> Url -> Api
@@ -41,6 +45,7 @@ getApiClient api =
     { getPostComments = getPostComments api
     , getRepliesForComment = getRepliesForComment api
     , addComment = addComment api
+    , reportError = reportError api
     }
 
 
@@ -81,6 +86,19 @@ getTask url resolver =
         , headers = []
         , url = url
         , body = Http.emptyBody
+        , resolver = resolver
+        , timeout = Nothing
+        }
+
+
+
+postTask : String -> Body -> Http.Resolver Http.Error a -> Task Http.Error a
+postTask url body resolver =
+    Http.task
+        { method = "POST"
+        , headers = []
+        , url = url
+        , body = body
         , resolver = resolver
         , timeout = Nothing
         }
@@ -134,6 +152,30 @@ getSiteInfo { siteUrl} =
 
 
 -- Actual API Requests
+type alias ErrorInfo =
+    { ref : String
+    , message : String
+    }
+
+type alias ReportError = ErrorInfo -> Task Http.Error ()
+
+reportError : Api -> ReportError
+reportError api { ref, message } =
+    let
+        endpointPath = "/error-reporting"
+
+        body =
+            E.object
+                [ ( "ref", E.string ref)
+                , ( "errorMessage", E.string message )
+                ]
+    in
+    postTask
+        (makeRequestUrl api endpointPath noParams)
+        (Http.jsonBody body)
+        (requestResolver <| D.succeed ())
+
+
 
 
 type alias GetPostComments = Task Http.Error CommentTree
@@ -201,12 +243,8 @@ addComment api commentContents postId parentCommentId anonymousAuthorName =
                 , authorId = Nothing
                 }
     in
-    Http.task
-        { method = "POST"
-        , headers = []
-        , url = makeRequestUrl api endpointPath noParams
-        , body = body
-        , resolver = requestResolver decoder
-        , timeout = Nothing
-        }
+    postTask
+        (makeRequestUrl api endpointPath noParams)
+        body
+        (requestResolver decoder)
 

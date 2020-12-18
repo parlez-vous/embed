@@ -8,6 +8,7 @@ import Data.Comment as Comment exposing (Comment, CommentTree, updateComment)
 import Data.Cuid exposing (Cuid)
 import Data.SimpleWebData as SimpleWebData exposing (SimpleWebData, mapSimpleWebData)
 import Dict
+import ErrorReporting exposing (ReporterClient)
 import Html.Styled as Styled exposing (Html, fromUnstyled)
 import Html.Styled.Attributes exposing (css)
 import Http
@@ -34,6 +35,7 @@ type alias Model =
     , currentTime : Time.Posix
     , apiClient : Api.ApiClient
     , anonymousUsername : Maybe String
+    , reporter : ReporterClient Msg
     }
 
 
@@ -43,19 +45,22 @@ type Msg
     = TextAreaValueChanged String
     | SubmitComment (Maybe String) Cuid (Maybe Cuid) String
     | LoadRepliesForCommentRequested Cuid
-    | CommentSubmitted (ApiRequestOutcome (Time.Posix, Comment))
-    | InitialPostCommentsFetched (ApiRequestOutcome CommentTree)
-    | RepliesForCommentFetched Cuid (ApiRequestOutcome CommentTree)
     | GoToParlezVous
     -- comments have internal state
     -- (currently text area visibility and text area value)
     -- this msg represents changes in both of these values
     | CommentChanged Comment
 
+    -- Api outcomes
+    | CommentSubmitted (ApiRequestOutcome (Time.Posix, Comment))
+    | InitialPostCommentsFetched (ApiRequestOutcome CommentTree)
+    | RepliesForCommentFetched Cuid (ApiRequestOutcome CommentTree)
+    | ErrorReportSubmitted (ApiRequestOutcome ())
 
 
-init : Maybe String -> Api -> Time.Posix -> ( Model, Cmd Msg )
-init maybeUsername api time =
+
+init : Maybe String -> Maybe String -> Api -> Time.Posix -> ( Model, Cmd Msg )
+init gitRef maybeUsername api time =
     let
         apiClient = Api.getApiClient api
 
@@ -64,6 +69,7 @@ init maybeUsername api time =
             , commentTree = SimpleWebData.Loading
             , currentTime = time
             , apiClient = apiClient
+            , reporter = ErrorReporting.reporterFactory apiClient ErrorReportSubmitted gitRef
             , anonymousUsername = maybeUsername
             }
 
@@ -228,22 +234,32 @@ update msg model =
                                 , currentTime = currentTime
                                 , textAreaValue = newTextAreaValue
                             }
+
+
+                        reporterMsg =
+                            model.reporter.reportInvalidTimeStamps
+                                currentTime
+                                newComment.createdAt
+
                     in
                     case model.anonymousUsername of
                         Just _ ->
                             -- we already have the username in both memory and cached in
                             -- localstorage
-                            ( newModel, Cmd.none )
+                            ( newModel, reporterMsg )
                         
                         Nothing ->
                             ( { newModel
                                 | anonymousUsername = Just newComment.anonymousAuthorName 
                               }
 
-                            , Utils.writeToLocalStorage
-                                ( "anonymousUsername"
-                                , newComment.anonymousAuthorName
-                                )
+                            , Cmd.batch
+                                [ Utils.writeToLocalStorage
+                                    ( "anonymousUsername"
+                                    , newComment.anonymousAuthorName
+                                    )
+                                , reporterMsg
+                                ]
                             )
                             
 
@@ -254,6 +270,10 @@ update msg model =
                         (Comment.setComment comment)
                         model.commentTree
                 }
+
+
+        ErrorReportSubmitted _ ->
+            simpleUpdate model
             
 
 

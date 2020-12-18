@@ -1,4 +1,4 @@
-port module Utils exposing (humanReadableTimestamp, getPathFromUrl, writeToLocalStorage)
+port module Utils exposing (humanReadableTimestamp, getPathFromUrl, writeToLocalStorage, timeDiff)
 
 import Time exposing (Posix, posixToMillis)
 import Url exposing (Url)
@@ -9,7 +9,6 @@ import Url exposing (Url)
 
 -- ( String = key, String = value )
 port writeToLocalStorage : ( String, String ) -> Cmd msg
-
 
 
 
@@ -25,7 +24,13 @@ getPathFromUrl url =
 
 
 
+
 --- Time Stuff 
+
+
+timeDiff : Posix -> Posix -> Int
+timeDiff first second =
+    posixToMillis first - posixToMillis second
 
 
 
@@ -100,7 +105,7 @@ maybePluralizeLabel value label =
 humanReadableTimestamp : Posix -> Posix -> String
 humanReadableTimestamp reference date =
     let
-        differenceMs = posixToMillis reference - posixToMillis date
+        differenceMs = timeDiff reference date
     in
     if differenceMs < 0 then
         ""
