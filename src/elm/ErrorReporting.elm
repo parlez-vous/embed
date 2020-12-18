@@ -50,7 +50,7 @@ reportInvalidTimeStamps { apiClient, toMsg, gitRef } currentTime newCommentTime 
                         "Invalid timestamps for newly added comment. " ++
                         ( "CurrentTime: " ++ (String.fromInt <| Time.posixToMillis currentTime)) ++
                         " - " ++
-                        ( "New Comment TimeStamp" ++ (String.fromInt <| Time.posixToMillis newCommentTime))
+                        ( "New Comment TimeStamp " ++ (String.fromInt <| Time.posixToMillis newCommentTime))
                 in
                 Task.attempt toMsg <|
                     apiClient.reportError
