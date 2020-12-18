@@ -41,6 +41,7 @@ reportInvalidTimeStamps { apiClient, toMsg, gitRef } currentTime newCommentTime 
     let
         timeDiff = Utils.timeDiff currentTime newCommentTime
     in
+    -- don't do reporting in non-production environments, which shouldn't have a git ref
     case gitRef of
         Just ref ->
             if timeDiff < 0 then
