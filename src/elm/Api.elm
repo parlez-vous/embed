@@ -118,14 +118,20 @@ makeRequestUrl { baseUrl } routePath queryParams =
             else
                 raw
 
-        embedRootPath =
-            "embed"
 
-        routePathList =
-            String.split "/" routePath
 
         pathComponents =
-            embedRootPath :: routePathList
+            if routePath == "/error-reporting" then
+                [ String.dropLeft 1 routePath ]
+            else
+                let
+                    embedRootPath = "embed"
+
+                    routePathList =
+                        String.split "/" routePath
+                in
+                embedRootPath :: routePathList
+
     in
     Url.Builder.crossOrigin
         stringifiedUrl
