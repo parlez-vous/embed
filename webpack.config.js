@@ -81,6 +81,7 @@ const commonConfig = {
     new DefinePlugin({
       ...copyArgs([
         'API_ENDPOINT',
+        'GIT_REF',
       ]),
     })
   ],
