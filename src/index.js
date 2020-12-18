@@ -9,6 +9,10 @@ if (!gitRef && process.env.NODE_ENV === 'production') {
   throw new Error('Missing git ref for production environment')
 }
 
+
+document._parlezvous_commit_ref = gitRef
+
+
 var app = Elm.Main.init({
   node: document.getElementById("parlezvous-comments"),
   flags: {
