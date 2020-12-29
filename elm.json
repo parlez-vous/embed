@@ -15,8 +15,9 @@
             "elm/url": "1.0.0",
             "hmsk/elm-css-modern-normalize": "1.0.2",
             "krisajenkins/remotedata": "6.0.1",
+            "noahzgordon/elm-color-extra": "1.0.2",
             "rtfeldman/elm-css": "16.1.0",
-            "supermacro/elm-antd": "7.0.0"
+            "supermacro/elm-antd": "7.0.1"
         },
         "indirect": {
             "avh4/elm-color": "1.0.0",
@@ -27,7 +28,6 @@
             "elm/virtual-dom": "1.0.2",
             "elm-community/list-extra": "8.2.4",
             "fredcy/elm-parseint": "2.0.1",
-            "noahzgordon/elm-color-extra": "1.0.2",
             "rtfeldman/elm-hex": "1.0.0"
         }
     },

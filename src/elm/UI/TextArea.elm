@@ -1,10 +1,14 @@
 module UI.TextArea exposing (replyTextArea, topLevelTextArea, toHtml)
 
 
-import Ant.Input as Input exposing (input, Input)
 import Ant.Button as Btn exposing (button)
+import Ant.Input as Input exposing (input, Input)
+import Ant.Theme as AntTheme
+import Color.Convert exposing (colorToHexWithAlpha)
+import Css exposing (..)
 import Data.Comment exposing (Comment)
 import Html.Styled as S exposing (Html, fromUnstyled)
+import Html.Styled.Attributes exposing (css)
 
 
 type TextArea msg = TextArea (Input msg, String)
@@ -21,14 +25,14 @@ replyTextArea comment updateTextArea =
 
 
 topLevelTextArea : ( String -> msg ) -> String -> TextArea msg
-topLevelTextArea updateTextArea =
+topLevelTextArea updateTextArea textAreaValue =
     let
         textAreaInput =
             input updateTextArea
                 |> Input.withTextAreaType { rows = 5 }
                 |> Input.withPlaceholder "What are your thoughts?"
     in
-    TextArea << Tuple.pair textAreaInput
+    TextArea (textAreaInput, textAreaValue)
 
 
 
@@ -45,10 +49,47 @@ toHtml submit (TextArea (input, value)) =
             |> Btn.onClick submit
             |> Btn.toHtml
             |> fromUnstyled
+
+        authenticationInfo =
+            let
+                createAuthButton text =
+                    S.button
+                        [ css
+                            [ all initial
+                            , fontFamily inherit
+                            , cursor pointer
+                            , color inherit
+                            , hover
+                                [ color <| hex <| colorToHexWithAlpha AntTheme.defaultColors.primaryFaded
+                                ]
+                            ]
+                        ]
+                        [ S.text text
+                        ]
+
+                textColor =
+                    colorToHexWithAlpha AntTheme.defaultTheme.typography.secondaryTextColor
+                    |> hex
+                    |> color
+            in
+            S.div
+                [ css [ textColor ] ]
+                [ createAuthButton "Log in" 
+                , S.text " or "
+                , createAuthButton "sign up"
+                , S.text " for a better experience."
+                ]
     in
     S.div []
         [ htmlTextArea
-        , submitCommentButton
+        , S.div 
+            [ css
+                [ displayFlex
+                , justifyContent spaceBetween
+                , marginTop (px 13)
+                ]
+            ]
+            [ authenticationInfo, submitCommentButton ]
         ]
 
 
