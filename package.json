@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "API_ENDPOINT=http://localhost:3000 webpack serve --port 8080",
+    "start": "API_ENDPOINT=http://localhost:8080 webpack serve --port 3000",
     "build": "rm -rf ./dist && NODE_ENV=production API_ENDPOINT=https://api-server-sl9i9.ondigitalocean.app webpack",
     "test": "elm-test"
   },
