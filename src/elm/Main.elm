@@ -57,7 +57,9 @@ init flags =
             let
                 api = Api.apiFactory apiBaseUrl siteUrl
             in
-            ( NotReady api flags.gitRef flags.anonymousUsername, Task.perform NewCurrentTime Time.now)
+            ( NotReady api flags.gitRef flags.anonymousUsername
+            , Task.perform NewCurrentTime Time.now
+            )
 
         _ ->
             ( Failed <| "invalid api endpoint or site url: " ++ "(" ++ flags.apiEndpoint ++ ", " ++ flags.siteUrl ++ ")"
