@@ -2,6 +2,7 @@ module Api.Input exposing
     ( apiResponseDecoder
     , commentDecoder
     , commentTreeDecoder
+    , userAndTokenDecoder
     )
 
 {-| Represents the Incoming data from the server.
@@ -9,6 +10,7 @@ module Api.Input exposing
 Includes JSON decoders and types.
 -}
 
+import Data exposing (UserWithToken, token)
 import Data.Comment exposing (Comment, CommentTree)
 import Json.Decode as D exposing (Decoder)
 import Time exposing (Posix)
@@ -90,4 +92,27 @@ commentTreeDecoder =
         (D.field "topLevelComments" setDecoder)
         (D.field "siteVerified" D.bool)
         (D.field "postId" D.string)
+
+
+userAndTokenDecoder : Decoder UserWithToken
+userAndTokenDecoder =
+    let
+        userDataDecoder =
+            D.map4
+                (\id username createdAt updatedAt ->
+                    { id = id
+                    , username = username
+                    , created = createdAt
+                    , updated = updatedAt
+                    , isModerator = False
+                    }
+                )
+                (D.field "id" D.string)
+                (D.field "email" D.string)
+                (D.field "createdAt" timestampDecoder)
+                (D.field "updatedAt" timestampDecoder)
+    in
+    D.map2 (\user tokenString -> (user, token tokenString))
+        (apiResponseDecoder userDataDecoder)
+        (D.field "sessionToken" D.string)
 

@@ -3,15 +3,13 @@ module UI.TextArea exposing (replyTextArea, topLevelTextArea, toHtml)
 
 import Ant.Button as Btn exposing (button)
 import Ant.Input as Input exposing (input, Input)
-import Ant.Theme as AntTheme
-import Color.Convert exposing (colorToHexWithAlpha)
 import Css exposing (..)
 import Data.Comment exposing (Comment)
 import Html.Styled as S exposing (Html, fromUnstyled)
 import Html.Styled.Attributes exposing (css)
 
 
-type TextArea msg = TextArea (Input msg, String)
+type TextArea msg = TextArea (Input msg, String, Maybe (Html msg))
 
 replyTextArea : Comment -> ( String -> msg ) -> TextArea msg
 replyTextArea comment updateTextArea =
@@ -21,23 +19,23 @@ replyTextArea comment updateTextArea =
                 |> Input.withTextAreaType { rows = 4 } 
                 |> Input.withPlaceholder ("respond to " ++ comment.anonymousAuthorName)
     in
-    TextArea ( textAreaInput, Tuple.second comment.textAreaState )
+    TextArea (textAreaInput, Tuple.second comment.textAreaState, Nothing)
 
 
-topLevelTextArea : ( String -> msg ) -> String -> TextArea msg
-topLevelTextArea updateTextArea textAreaValue =
+topLevelTextArea : ( String -> msg ) -> String -> Html msg -> TextArea msg
+topLevelTextArea updateTextArea textAreaValue extraInfo =
     let
         textAreaInput =
             input updateTextArea
                 |> Input.withTextAreaType { rows = 5 }
                 |> Input.withPlaceholder "What are your thoughts?"
     in
-    TextArea (textAreaInput, textAreaValue)
+    TextArea (textAreaInput, textAreaValue, Just extraInfo)
 
 
 
 toHtml : msg -> TextArea msg -> Html msg
-toHtml submit (TextArea (input, value)) =
+toHtml submit (TextArea (input, value, maybeExtraInfo)) =
     let
         htmlTextArea =
             Input.toHtml value input
@@ -50,35 +48,11 @@ toHtml submit (TextArea (input, value)) =
             |> Btn.toHtml
             |> fromUnstyled
 
-        authenticationInfo =
-            let
-                createAuthButton text =
-                    S.button
-                        [ css
-                            [ all initial
-                            , fontFamily inherit
-                            , cursor pointer
-                            , color inherit
-                            , hover
-                                [ color <| hex <| colorToHexWithAlpha AntTheme.defaultColors.primaryFaded
-                                ]
-                            ]
-                        ]
-                        [ S.text text
-                        ]
+        extraInfo =
+            case maybeExtraInfo of
+                Just info -> info
+                Nothing -> S.text ""
 
-                textColor =
-                    colorToHexWithAlpha AntTheme.defaultTheme.typography.secondaryTextColor
-                    |> hex
-                    |> color
-            in
-            S.div
-                [ css [ textColor ] ]
-                [ createAuthButton "Log in" 
-                , S.text " or "
-                , createAuthButton "sign up"
-                , S.text " for a better experience."
-                ]
     in
     S.div []
         [ htmlTextArea
@@ -89,7 +63,7 @@ toHtml submit (TextArea (input, value)) =
                 , marginTop (px 13)
                 ]
             ]
-            [ authenticationInfo, submitCommentButton ]
+            [ extraInfo, submitCommentButton ]
         ]
 
 

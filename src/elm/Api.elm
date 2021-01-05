@@ -7,6 +7,7 @@ module Api exposing
     )
 
 import Api.Output as Output
+import Data exposing (UserWithToken)
 import Data.Comment exposing (Comment, CommentTree)
 import Data.Cuid exposing (Cuid)
 import Http exposing (Body)
@@ -31,6 +32,7 @@ type alias ApiClient =
     , getRepliesForComment : GetRepliesForComment
     , addComment : AddComment 
     , reportError : ReportError
+    , userLogIn : LogIn
     }
 
 
@@ -46,6 +48,7 @@ getApiClient api =
     , getRepliesForComment = getRepliesForComment api
     , addComment = addComment api
     , reportError = reportError api
+    , userLogIn = userLogIn api
     }
 
 
@@ -119,18 +122,11 @@ makeRequestUrl { baseUrl } routePath queryParams =
                 raw
 
 
-
         pathComponents =
             if routePath == "/error-reporting" then
                 [ String.dropLeft 1 routePath ]
             else
-                let
-                    embedRootPath = "embed"
-
-                    routePathList =
-                        String.split "/" routePath
-                in
-                embedRootPath :: routePathList
+                String.split "/" routePath
 
     in
     Url.Builder.crossOrigin
@@ -158,6 +154,7 @@ getSiteInfo { siteUrl} =
 
 
 -- Actual API Requests
+
 type alias ErrorInfo =
     { ref : String
     , message : String
@@ -191,7 +188,7 @@ getPostComments api =
     let
         { hostname, path } = getSiteInfo api
         
-        endpointPath = "sites/" ++ hostname ++ "/comments"
+        endpointPath = "embed/sites/" ++ hostname ++ "/comments"
 
         decoder =
             Input.apiResponseDecoder Input.commentTreeDecoder
@@ -214,7 +211,7 @@ getRepliesForComment api commentId =
     let
         { hostname, path } = getSiteInfo api
         
-        endpointPath = "sites/" ++ hostname ++ "/comments"
+        endpointPath = "embed/sites/" ++ hostname ++ "/comments"
 
         decoder =
             Input.apiResponseDecoder Input.commentTreeDecoder
@@ -236,7 +233,7 @@ type alias AddComment =
 addComment : Api -> AddComment
 addComment api commentContents postId parentCommentId anonymousAuthorName =
     let
-        endpointPath = "posts/" ++ postId ++ "/comments"
+        endpointPath = "embed/posts/" ++ postId ++ "/comments"
         
         decoder =
             Input.apiResponseDecoder Input.commentDecoder
@@ -254,3 +251,24 @@ addComment api commentContents postId parentCommentId anonymousAuthorName =
         body
         (requestResolver decoder)
 
+
+
+type alias LogIn =
+    Output.LogIn -> Task Http.Error UserWithToken
+
+
+userLogIn : Api -> LogIn 
+userLogIn api data =
+    let
+        endpointPath = "common/signin"
+
+        signinJson =
+            E.object
+                [ ( "usernameOrEmail", E.string data.usernameOrEmail )
+                , ( "password", E.string data.password )
+                ]
+    in
+    postTask
+        (makeRequestUrl api endpointPath noParams)
+        (Http.jsonBody signinJson)
+        (requestResolver Input.userAndTokenDecoder)

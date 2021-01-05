@@ -1,15 +1,19 @@
 module ParlezVousEmbed exposing (init, viewApp, Model, Msg, setCurrentTime, update)
 
 import Ant.Button as Btn exposing (button)
+import Ant.Form.View as FV
+import Ant.Modal as Modal
 import Api exposing (Api)
 import Browser.Navigation as Nav
 import Css exposing (..)
+import Data exposing (UserWithToken)
 import Data.Comment as Comment exposing (Comment, CommentTree, updateComment)
 import Data.Cuid exposing (Cuid)
 import Data.SimpleWebData as SimpleWebData exposing (SimpleWebData, mapSimpleWebData)
 import Dict
 import ErrorReporting exposing (ReporterClient)
-import Html.Styled as Styled exposing (Html, fromUnstyled)
+import Html
+import Html.Styled as Styled exposing (Html, fromUnstyled, toUnstyled)
 import Html.Styled.Attributes exposing (css)
 import Http
 import RemoteData
@@ -18,6 +22,7 @@ import Task
 import Time
 import UI.Comment exposing (viewCommentsSection)
 import UI.TextArea as TextArea exposing (topLevelTextArea)
+import UI.AuthenticationInfo as AuthenticationInfo exposing (createAuthenticationPrompt)
 import Utils exposing (humanReadableTimestamp)
 
 
@@ -35,27 +40,43 @@ type alias Model =
     , currentTime : Time.Posix
     , apiClient : Api.ApiClient
     , anonymousUsername : Maybe String
+
+    -- authentication stuff
+    , modalOpen : Modal.ModalState
+    , logInFormState : FV.Model AuthenticationInfo.LogInValues
+    
+    -- for telemetry
     , reporter : ReporterClient Msg
     }
 
 
 type alias ApiRequestOutcome a = Result Http.Error a
 
+
 type Msg
     = TextAreaValueChanged String
     | SubmitComment (Maybe String) Cuid (Maybe Cuid) String
     | LoadRepliesForCommentRequested Cuid
     | GoToParlezVous
+
+    -- Authentication Stuff
+    | ModalStateChanged Modal.ModalState
+    | AuthenticationButtonClicked AuthenticationInfo.AuthenticationRequest
+    | LogInFormChanged (FV.Model AuthenticationInfo.LogInValues)
+    | LogInRequested String String
+
     -- comments have internal state
     -- (currently text area visibility and text area value)
     -- this msg represents changes in both of these values
     | CommentChanged Comment
+
 
     -- Api outcomes
     | CommentSubmitted (ApiRequestOutcome (Time.Posix, Comment))
     | InitialPostCommentsFetched (ApiRequestOutcome CommentTree)
     | RepliesForCommentFetched Cuid (ApiRequestOutcome CommentTree)
     | ErrorReportSubmitted (ApiRequestOutcome ())
+    | UserLoggedIn (ApiRequestOutcome UserWithToken)
 
 
 
@@ -64,8 +85,19 @@ init gitRef maybeUsername api time =
     let
         apiClient = Api.getApiClient api
 
+        logInFormState =
+            FV.idle
+                { usernameOrEmail = ""
+                , password =
+                    { value = ""
+                    , textVisible = False
+                    }
+                }
+
         initialModel =
             { textAreaValue = ""
+            , modalOpen = False
+            , logInFormState = logInFormState
             , commentTree = SimpleWebData.Loading
             , currentTime = time
             , apiClient = apiClient
@@ -97,8 +129,58 @@ update msg model =
             , Nav.load "https://parlezvous.io?ref=embed"
             )
 
+        ModalStateChanged newState ->
+            simpleUpdate { model | modalOpen = newState } 
+
+        LogInFormChanged newState ->
+            simpleUpdate { model | logInFormState = newState }
+
+        LogInRequested usernameOrEmail password ->
+            let
+                logInFormState = model.logInFormState
+
+                newModel =
+                    { model | logInFormState =
+                        { logInFormState | state = FV.Loading
+                        }
+                    }
+
+                _ = Debug.log "LogInRequested:" (usernameOrEmail ++ ", " ++ password)
+
+                logInData =
+                    { usernameOrEmail = usernameOrEmail
+                    , password = password
+                    }
+
+                logInCmd = Task.attempt UserLoggedIn (model.apiClient.userLogIn logInData)
+            in
+            ( newModel, logInCmd )
+
         TextAreaValueChanged newValue ->
             simpleUpdate { model | textAreaValue = newValue }
+
+        AuthenticationButtonClicked request ->
+            simpleUpdate { model | modalOpen = True }
+
+        UserLoggedIn httpRequestResult ->
+            case httpRequestResult of
+                Err e ->
+                    let
+                        _ = Debug.todo "report this" e
+                        _ = Debug.todo "UserLoggedIn Error: " e
+                    in
+                    simpleUpdate { model | modalOpen = False }
+
+                Ok (user, userSessionToken) ->
+                    let
+                        _ = Debug.log "we did it!" ""
+                        cmd = Utils.writeToLocalStorage
+                            ( "sessionToken"
+                            , Data.tokenToString userSessionToken
+                            )
+                    in
+                    ( { model | modalOpen = False }, cmd )
+
 
         InitialPostCommentsFetched httpRequestResult ->
             case httpRequestResult of
@@ -292,6 +374,15 @@ update msg model =
 ------------------------------------------
 -- View
 
+authenticationForm : FV.Model AuthenticationInfo.LogInValues -> Html.Html Msg
+authenticationForm = 
+    FV.toHtml
+        { onChange = LogInFormChanged
+        , action = "submit"
+        , loading = "logging in..."
+        , validation = FV.ValidateOnSubmit
+        }
+        (AuthenticationInfo.logInForm LogInRequested)
 
 
 
@@ -323,8 +414,10 @@ viewApp model =
                         textAreaAction =
                             SubmitComment model.anonymousUsername commentTree.postId Nothing model.textAreaValue
 
+                        authenticationPrompt = createAuthenticationPrompt AuthenticationButtonClicked
+
                         textArea =
-                            topLevelTextArea TextAreaValueChanged model.textAreaValue
+                            topLevelTextArea TextAreaValueChanged model.textAreaValue authenticationPrompt
                             |> TextArea.toHtml textAreaAction
                     in
                     Styled.div []
@@ -351,9 +444,17 @@ viewApp model =
                 [ Styled.a [ css [ cursor pointer ] ]
                     [ poweredByText ]
                 ]
+
+        modal =
+            Modal.modal (authenticationForm model.logInFormState)
+            |> Modal.withTitle "Log In"
+            |> Modal.withOnCancel ModalStateChanged 
+            |> Modal.toHtml model.modalOpen
+            |> fromUnstyled
     in
     Styled.div []
-        [ embedContents
+        [ modal
+        , embedContents
         , poweredByParlezVous
         ]
 

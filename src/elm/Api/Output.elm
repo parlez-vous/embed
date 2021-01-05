@@ -1,4 +1,4 @@
-module Api.Output exposing (addCommentBody)
+module Api.Output exposing (addCommentBody, LogIn)
 
 
 {-| JSON encoders to send JSON data
@@ -37,4 +37,9 @@ addCommentBody { body, parentCommentId, authorId, anonAuthorName } =
                 ]
     in
     Http.jsonBody jsonValue
+
+type alias LogIn =
+    { usernameOrEmail : String 
+    , password : String
+    }
 

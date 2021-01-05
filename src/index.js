@@ -38,6 +38,8 @@ const domChangeObserver = new MutationObserver(() => {
 
 domChangeObserver.observe(document.body, observerOptions)
 
+var sessionTokenKey = 'sessionToken'
+
 var app = Elm.Main.init({
   node: document.getElementById("parlezvous-comments"),
   flags: {
@@ -45,10 +47,15 @@ var app = Elm.Main.init({
     siteUrl: hostUrl.origin,
     anonymousUsername: localStorage.getItem('anonymousUsername'),
     gitRef,
+    sessionToken: localStorage.getItem(sessionTokenKey),
   }
 });
 
 app.ports.writeToLocalStorage.subscribe(([key, value]) => {
   localStorage.setItem(key, value)
+})
+
+app.ports.removeToken.subscribe(() => {
+  localStorage.removeItem(sessionTokenKey)
 })
 
