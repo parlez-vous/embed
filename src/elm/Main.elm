@@ -39,7 +39,7 @@ main =
   Browser.element
     { init = init
     , view = view
-    , update = update
+    , update = Model.update
     , subscriptions = subscriptions
     }
 
@@ -66,60 +66,6 @@ init flags =
 
 
 
--- UPDATE
-
-
-
-                
-
-
-intoReadyState  : Maybe String -> Maybe String -> Api -> Time.Posix -> ( Model, Cmd Msg )
-intoReadyState gitRef maybeUsername api time =
-    let
-        apiClient = Api.getApiClient api
-
-        logInFormState =
-            FV.idle
-                { usernameOrEmail = ""
-                , password =
-                    { value = ""
-                    , textVisible = False
-                    }
-                }
-
-        initialAppData =
-            { textAreaValue = ""
-            , modalOpen = False
-            , logInFormState = logInFormState
-            , commentTree = SimpleWebData.Loading
-            , currentTime = time
-            , apiClient = apiClient
-            , reporter = ErrorReporting.reporterFactory apiClient ErrorReportSubmitted gitRef
-            , user = Anonymous maybeUsername
-            }
-
-        apiRequest = Task.attempt InitialPostCommentsFetched apiClient.getPostComments
-    in
-    ( Ready initialAppData
-    , apiRequest
-    )
-
-
-
-update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
-    case ( model, msg ) of
-        ( Failed reason, _ ) ->
-            ( Failed reason, Cmd.none )
-
-        ( NotReady api gitRef maybeAnonymousUsername, NewCurrentTime time ) ->
-            intoReadyState gitRef maybeAnonymousUsername api time
-
-        ( NotReady api gitRef maybeAnonymousUsername, _ ) ->
-            ( NotReady api gitRef maybeAnonymousUsername, Cmd.none )
-
-        ( Ready embedModel, _ ) ->
-            Model.updateReadyModel msg embedModel
 
 
 

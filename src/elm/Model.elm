@@ -2,7 +2,7 @@ module Model exposing
     ( AppData
     , Model(..)
     , Msg(..)
-    , updateReadyModel
+    , update
     )
 
 
@@ -82,6 +82,55 @@ type Msg
 -- handler functions exported for testing
 
 -- handleCommentSubmitted : ( Time.Posix, Comment ) ->
+
+
+intoReadyState  : Maybe String -> Maybe String -> Api -> Time.Posix -> ( Model, Cmd Msg )
+intoReadyState gitRef maybeUsername api time =
+    let
+        apiClient = Api.getApiClient api
+
+        logInFormState =
+            FV.idle
+                { usernameOrEmail = ""
+                , password =
+                    { value = ""
+                    , textVisible = False
+                    }
+                }
+
+        initialAppData =
+            { textAreaValue = ""
+            , modalOpen = False
+            , logInFormState = logInFormState
+            , commentTree = SimpleWebData.Loading
+            , currentTime = time
+            , apiClient = apiClient
+            , reporter = ErrorReporting.reporterFactory apiClient ErrorReportSubmitted gitRef
+            , user = Anonymous maybeUsername
+            }
+
+        apiRequest = Task.attempt InitialPostCommentsFetched apiClient.getPostComments
+    in
+    ( Ready initialAppData
+    , apiRequest
+    )
+
+
+
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case ( model, msg ) of
+        ( Failed reason, _ ) ->
+            ( Failed reason, Cmd.none )
+
+        ( NotReady api gitRef maybeAnonymousUsername, NewCurrentTime time ) ->
+            intoReadyState gitRef maybeAnonymousUsername api time
+
+        ( NotReady api gitRef maybeAnonymousUsername, _ ) ->
+            ( NotReady api gitRef maybeAnonymousUsername, Cmd.none )
+
+        ( Ready embedModel, _ ) ->
+            updateReadyModel msg embedModel
 
 
 
