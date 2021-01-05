@@ -1,7 +1,6 @@
 module Main exposing (main)
 
 import Ant.Button as Btn exposing (button)
-import Ant.Css
 import Ant.Form.View as FV
 import Ant.Modal as Modal
 import Api exposing (Api)
@@ -9,7 +8,6 @@ import Browser
 import Browser.Navigation as Nav
 import Css exposing (..)
 import Css.Media as Media exposing (withMedia)
-import Css.ModernNormalize as NormalizeCss
 import Data exposing (UserWithToken)
 import Data.Comment as Comment exposing (Comment, CommentTree, updateComment)
 import Data.Cuid exposing (Cuid)
@@ -24,6 +22,7 @@ import RemoteData
 import Set
 import Task
 import Time
+import UI.AppShell exposing (appShell)
 import UI.AuthenticationInfo as AuthenticationInfo exposing (createAuthenticationPrompt)
 import UI.Comment exposing (viewCommentsSection)
 import UI.TextArea as TextArea exposing (topLevelTextArea)
@@ -441,53 +440,6 @@ subscriptions _ =
 -- VIEW
 
 
-type alias MediaQueries =
-    { extraSmall : Style
-    , small : Style
-    , medium : Style
-    , large : Style
-    }
-
-
-extraSmallMediaQueries : Style
-extraSmallMediaQueries =
-    withMedia [ Media.only Media.screen [ Media.maxWidth (px 375) ] ]
-        [ maxWidth (pct 95)
-        ]
-
-
-smallMediaQueries : Style
-smallMediaQueries =
-    withMedia [ Media.only Media.screen [ Media.minWidth (px 376), Media.maxWidth (px 640) ] ]
-        [ maxWidth (pct 94)
-        ]
-
-
-mediumMediaQueries : Style
-mediumMediaQueries =
-    withMedia [ Media.only Media.screen [ Media.minWidth (px 641), Media.maxWidth (px 1007) ] ]
-        [ maxWidth (px 600)
-        ]
-
-
-
-largeMediaQueries : Style
-largeMediaQueries =
-    withMedia [ Media.only Media.screen [ Media.minWidth (px 1008) ] ]
-        [ maxWidth (px 800)
-        ]
-
-
-
-mediaQueries : MediaQueries
-mediaQueries =
-    { extraSmall = extraSmallMediaQueries
-    , small = smallMediaQueries
-    , medium = mediumMediaQueries
-    , large = largeMediaQueries
-    }
-
-
 authenticationForm : FV.Model AuthenticationInfo.LogInValues -> Html.Html Msg
 authenticationForm = 
     FV.toHtml
@@ -586,23 +538,6 @@ view model =
 
                 Ready appData ->
                     viewApp appData
-
     in
-    toUnstyled <|
-        Styled.div
-            [ Attr.class "parlez-container"
-            , css
-                [ maxWidth (px 800)
-                , marginRight auto
-                , marginLeft auto
-                , mediaQueries.extraSmall
-                , mediaQueries.small
-                , mediaQueries.medium
-                , mediaQueries.large
-                ]
-            ]
-            [ fromUnstyled NormalizeCss.globalHtml
-            , fromUnstyled Ant.Css.defaultStyles
-            , contents
-            ]
+    appShell contents
 
