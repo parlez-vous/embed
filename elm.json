@@ -17,7 +17,7 @@
             "krisajenkins/remotedata": "6.0.1",
             "noahzgordon/elm-color-extra": "1.0.2",
             "rtfeldman/elm-css": "16.1.0",
-            "supermacro/elm-antd": "7.0.1"
+            "supermacro/elm-antd": "7.1.1"
         },
         "indirect": {
             "avh4/elm-color": "1.0.0",
