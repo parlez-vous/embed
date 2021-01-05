@@ -10,7 +10,7 @@ module Api.Input exposing
 Includes JSON decoders and types.
 -}
 
-import Data exposing (UserWithToken, token)
+import Data exposing (UserInfoWithToken, token)
 import Data.Comment exposing (Comment, CommentTree)
 import Json.Decode as D exposing (Decoder)
 import Time exposing (Posix)
@@ -94,7 +94,7 @@ commentTreeDecoder =
         (D.field "postId" D.string)
 
 
-userAndTokenDecoder : Decoder UserWithToken
+userAndTokenDecoder : Decoder UserInfoWithToken
 userAndTokenDecoder =
     let
         userDataDecoder =
@@ -112,7 +112,7 @@ userAndTokenDecoder =
                 (D.field "createdAt" timestampDecoder)
                 (D.field "updatedAt" timestampDecoder)
     in
-    D.map2 (\user tokenString -> (user, token tokenString))
+    D.map2 (\userInfo tokenString -> (userInfo, token tokenString))
         (apiResponseDecoder userDataDecoder)
         (D.field "sessionToken" D.string)
 

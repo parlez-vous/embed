@@ -1,8 +1,14 @@
-module Data exposing (token, tokenToString, Token, User, UserWithToken)
+module Data exposing (token, tokenToString, Token, User(..), UserInfoWithToken)
 
 import Time
 
-type alias User =
+type User
+    = Authenticated UserInfo 
+    -- We may have access to a server-generated
+    -- random username if the user has already commented
+    | Anonymous (Maybe String)
+
+type alias UserInfo =
     { id : String
     , username : String
     , created : Time.Posix
@@ -19,5 +25,5 @@ token = Token
 tokenToString : Token -> String
 tokenToString (Token val) = val
 
-type alias UserWithToken = ( User, Token )
+type alias UserInfoWithToken = ( UserInfo, Token )
 

@@ -7,7 +7,7 @@ module Api exposing
     )
 
 import Api.Output as Output
-import Data exposing (UserWithToken)
+import Data exposing (User(..), UserInfoWithToken)
 import Data.Comment exposing (Comment, CommentTree)
 import Data.Cuid exposing (Cuid)
 import Http exposing (Body)
@@ -227,23 +227,31 @@ getRepliesForComment api commentId =
 
 
 type alias AddComment =
-    String -> Cuid -> Maybe Cuid -> Maybe String -> Task Http.Error Comment
+    String -> Cuid -> Maybe Cuid -> User -> Task Http.Error Comment
 
 
 addComment : Api -> AddComment
-addComment api commentContents postId parentCommentId anonymousAuthorName =
+addComment api commentContents postId parentCommentId user =
     let
         endpointPath = "embed/posts/" ++ postId ++ "/comments"
         
         decoder =
             Input.apiResponseDecoder Input.commentDecoder
 
+        ( authorId, anonAuthorName ) =
+            case user of
+                Authenticated user_ ->
+                    ( Just user_.id, Nothing )
+
+                Anonymous maybeAnonymousUsername ->
+                    ( Nothing, maybeAnonymousUsername )
+
         body =
             Output.addCommentBody
                 { body = commentContents
                 , parentCommentId = parentCommentId
-                , anonAuthorName = anonymousAuthorName
-                , authorId = Nothing
+                , anonAuthorName = anonAuthorName
+                , authorId = authorId
                 }
     in
     postTask
@@ -254,7 +262,7 @@ addComment api commentContents postId parentCommentId anonymousAuthorName =
 
 
 type alias LogIn =
-    Output.LogIn -> Task Http.Error UserWithToken
+    Output.LogIn -> Task Http.Error UserInfoWithToken
 
 
 userLogIn : Api -> LogIn 
