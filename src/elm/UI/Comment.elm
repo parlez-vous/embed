@@ -79,6 +79,9 @@ commentActionButton value msg =
             [ border zero
             , paddingLeft zero
             , fontSize (px 11)
+            , cursor pointer
+            , backgroundColor (hex "#fff")
+            , marginBottom (px 15)
             ]
         , onClick msg
         ]
