@@ -29,16 +29,17 @@
     <script id="pv-root">
         const hostUrl = document.location.href
         const pvIframe = document.createElement('iframe')
+        const embedAppUrl = 'http://dev.parlezvous.io:3000'
 
         pvIframe.setAttribute('id', 'pv-iframe')
         pvIframe.setAttribute('scrolling', 'no')
         pvIframe.setAttribute('style', 'width: 100% !important; border: none !important; overflow: hidden;')
-        pvIframe.setAttribute('src', `http://dev.parlezvous.io:3000?host_url=${hostUrl}`)
+        pvIframe.setAttribute('src', `${embedAppUrl}?host_url=${hostUrl}`)
 
         document.getElementById('pv-root').insertAdjacentElement('afterend', pvIframe)
 
         window.addEventListener('message', (e) => {
-            if (event.origin !== 'http://dev.parlezvous.io:3000') return;
+            if (event.origin !== embedAppUrl) return;
             pvIframe.style.height = e.data.height + 'px'
         })
     </script>
