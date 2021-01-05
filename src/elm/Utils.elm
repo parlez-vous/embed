@@ -1,7 +1,15 @@
-port module Utils exposing (humanReadableTimestamp, getPathFromUrl, writeToLocalStorage, timeDiff, removeToken)
+port module Utils exposing (humanReadableTimestamp, getPathFromUrl, writeToLocalStorage, simpleUpdate, timeDiff, removeToken)
 
 import Time exposing (Posix, posixToMillis)
 import Url exposing (Url)
+
+
+
+
+
+simpleUpdate : m -> ( m, Cmd msg )
+simpleUpdate m = ( m, Cmd.none )
+
 
 
 --- Ports
