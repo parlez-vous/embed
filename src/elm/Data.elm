@@ -1,4 +1,4 @@
-module Data exposing (token, tokenToString, Token, User(..), UserInfo, UserInfoWithToken)
+module Data exposing (Author(..), token, tokenToString, Token, User(..), UserInfo, UserInfoWithToken)
 
 import Time
 
@@ -7,6 +7,12 @@ type User
     -- We may have access to a server-generated
     -- random username if the user has already commented
     | Anonymous (Maybe String)
+
+
+type Author
+    = Authenticated_ UserInfo
+    | Anonymous_ String
+
 
 type alias UserInfo =
     { id : String

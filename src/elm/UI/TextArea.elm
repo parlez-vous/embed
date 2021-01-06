@@ -7,9 +7,11 @@ import Css exposing (..)
 import Data.Comment exposing (Comment)
 import Html.Styled as S exposing (Html, fromUnstyled)
 import Html.Styled.Attributes exposing (css)
+import Utils
 
 
 type TextArea msg = TextArea (Input msg, String, Maybe (Html msg))
+
 
 replyTextArea : Comment -> ( String -> msg ) -> TextArea msg
 replyTextArea comment updateTextArea =
@@ -17,7 +19,7 @@ replyTextArea comment updateTextArea =
         textAreaInput = 
             input updateTextArea
                 |> Input.withTextAreaType { rows = 4 } 
-                |> Input.withPlaceholder ("respond to " ++ comment.anonymousAuthorName)
+                |> Input.withPlaceholder ("respond to " ++ (Utils.getAuthorName comment))
     in
     TextArea (textAreaInput, Tuple.second comment.textAreaState, Nothing)
 

@@ -439,7 +439,7 @@ updateReadyModel msg model =
                                     Nothing ->
                                         ( { newModel
                                             | user = 
-                                                Just newComment.anonymousAuthorName
+                                                Just newComment.fallbackAnonUsername
                                                 |> Anonymous
                                                 |> SimpleWebData.Success
                                           }
@@ -447,7 +447,7 @@ updateReadyModel msg model =
                                         , Cmd.batch
                                             [ Utils.writeToLocalStorage
                                                 ( "anonymousUsername"
-                                                , newComment.anonymousAuthorName
+                                                , newComment.fallbackAnonUsername
                                                 )
                                             , reporterMsg
                                             ]

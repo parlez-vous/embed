@@ -9,6 +9,7 @@ module Data.Comment exposing
     , getCommentsFromPointers
     )
 
+import Data exposing (Author(..))
 import Data.Cuid exposing (Cuid)
 import Dict exposing (Dict)
 import Time exposing (Posix)
@@ -22,7 +23,10 @@ type alias Comment =
     { id : String
     , isLeaf : Bool
     , parentCommentId : Maybe Cuid
-    , anonymousAuthorName : String
+    , author : Author
+
+    -- used when posting a comment as anonymous user
+    , fallbackAnonUsername : String
     , body : String
 
     -- CONTEXT REGARDING replyIds + remoteReplyBuffer:

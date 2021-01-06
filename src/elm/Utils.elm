@@ -1,5 +1,15 @@
-port module Utils exposing (humanReadableTimestamp, getPathFromUrl, removeSessionToken, writeToLocalStorage, simpleUpdate, timeDiff)
+port module Utils exposing
+    ( getAuthorName
+    , humanReadableTimestamp
+    , getPathFromUrl
+    , removeSessionToken
+    , writeToLocalStorage
+    , simpleUpdate
+    , timeDiff
+    )
 
+import Data exposing (Author(..))
+import Data.Comment exposing (Comment)
 import Time exposing (Posix, posixToMillis)
 import Url exposing (Url)
 
@@ -10,6 +20,15 @@ import Url exposing (Url)
 simpleUpdate : m -> ( m, Cmd msg )
 simpleUpdate m = ( m, Cmd.none )
 
+
+getAuthorName : Comment -> String
+getAuthorName { author } =
+    case author of
+        Anonymous_ anonUsername ->
+            anonUsername
+
+        Authenticated_ userInfo ->
+            userInfo.username
 
 
 --- Ports

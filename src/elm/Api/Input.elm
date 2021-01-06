@@ -11,12 +11,31 @@ module Api.Input exposing
 Includes JSON decoders and types.
 -}
 
-import Data exposing (UserInfo, UserInfoWithToken, token)
+import Data exposing (Author(..), UserInfo, UserInfoWithToken, token)
 import Data.Comment exposing (Comment, CommentTree)
 import Json.Decode as D exposing (Decoder)
 import Time exposing (Posix)
 import Set
 import RemoteData
+import Data exposing (User(..))
+
+
+map9 
+    : (a -> b -> c -> d -> e -> f -> g -> h -> i -> value)
+    -> Decoder a
+    -> Decoder b
+    -> Decoder c
+    -> Decoder d
+    -> Decoder e
+    -> Decoder f
+    -> Decoder g
+    -> Decoder h
+    -> Decoder i
+    -> Decoder value
+map9 f da db dc dd de df dg dh di =
+    (D.map2 (\f_ i -> f_ i))
+        (D.map8 f da db dc dd de df dg dh)
+        di
 
 
 apiResponseDecoder : Decoder a -> Decoder a
@@ -39,8 +58,9 @@ intoComment
     -> Bool
     -> Int
     -> Posix
+    -> Maybe UserInfo
     -> Comment
-intoComment id maybeParentCommentId anonAuthorName body replyIds isLeaf votes createdAt =
+intoComment id maybeParentCommentId anonAuthorName body replyIds isLeaf votes createdAt maybeUserInfo =
     let
         replyIdSet = Set.fromList replyIds
 
@@ -54,11 +74,20 @@ intoComment id maybeParentCommentId anonAuthorName body replyIds isLeaf votes cr
         textAreaVisibility = False
 
         textAreaState = ( textAreaVisibility, "" )
+
+        author =
+            case maybeUserInfo of
+                Just userInfo ->
+                    Authenticated_ userInfo
+
+                Nothing ->
+                    Anonymous_ anonAuthorName
     in
     Comment
         id
         isLeaf
         maybeParentCommentId
+        author
         anonAuthorName
         body
         replyIdSet
@@ -70,7 +99,7 @@ intoComment id maybeParentCommentId anonAuthorName body replyIds isLeaf votes cr
 
 commentDecoder : Decoder Comment
 commentDecoder = 
-    D.map8 intoComment
+    map9 intoComment
         (D.field "id" D.string)
         (D.field "parentCommentId" <| D.maybe D.string)
         (D.field "anonAuthorName" D.string)
@@ -79,6 +108,7 @@ commentDecoder =
         (D.field "isLeaf" D.bool)
         (D.field "votes" D.int)
         (D.field "createdAt" timestampDecoder)
+        (D.field "author" <| D.maybe userInfoDecoder)
 
 
 commentTreeDecoder : Decoder CommentTree

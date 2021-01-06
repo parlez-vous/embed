@@ -15,6 +15,7 @@ import RemoteData exposing (WebData)
 import Set exposing (Set)
 import Time
 import UI.TextArea as TextArea 
+import Utils
 
 
 type alias StyledHtml a = S.Html a
@@ -157,7 +158,7 @@ viewComments effects formatter pointers commentMap =
 
                 authorName =
                     S.span [ css [ marginRight (px 10) ] ]
-                        [ strongText comment.anonymousAuthorName
+                        [ strongText <| Utils.getAuthorName comment
                         ]
                 
                 replyInfo =
