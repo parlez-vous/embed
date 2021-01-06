@@ -108,7 +108,7 @@ userInfoDecoder =
             }
         )
         (D.field "id" D.string)
-        (D.field "email" D.string)
+        (D.field "username" D.string)
         (D.field "createdAt" timestampDecoder)
         (D.field "updatedAt" timestampDecoder)
 
