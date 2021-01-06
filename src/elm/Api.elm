@@ -1,16 +1,14 @@
 module Api exposing
-    ( Api
-    , ApiClient
-    , apiFactory
+    ( ApiClient
     , getApiClient
     , reportError 
     )
 
 import Api.Output as Output
-import Data exposing (User(..), UserInfoWithToken)
+import Data exposing (User(..), UserInfo, UserInfoWithToken)
 import Data.Comment exposing (Comment, CommentTree)
 import Data.Cuid exposing (Cuid)
-import Http exposing (Body)
+import Http exposing (Body, Header)
 import Api.Input as Input
 import Json.Decode as D exposing (Decoder)
 import Json.Encode as E
@@ -33,27 +31,32 @@ type alias ApiClient =
     , addComment : AddComment 
     , reportError : ReportError
     , userLogIn : LogIn
+    , getUserFromSessionToken : GetUserFromSessionToken
     }
 
 
 
-apiFactory : Url -> Url -> Api
-apiFactory =
-    Api
-
-
-getApiClient : Api -> ApiClient 
-getApiClient api =
+getApiClient : Url -> Url -> ApiClient 
+getApiClient baseUrl siteUrl =
+    let
+        api = Api baseUrl siteUrl
+    in
     { getPostComments = getPostComments api
     , getRepliesForComment = getRepliesForComment api
     , addComment = addComment api
     , reportError = reportError api
     , userLogIn = userLogIn api
+    , getUserFromSessionToken = getUserFromSessionToken api
     }
 
 
 noParams : List QueryParameter
 noParams = []
+
+
+noHeaders : List Header
+noHeaders = []
+
 
 
 requestResolver : Decoder a -> Http.Resolver Http.Error a
@@ -82,11 +85,11 @@ requestResolver decoder =
         )
 
 
-getTask : String -> Http.Resolver Http.Error a -> Task Http.Error a
-getTask url resolver =
+getTask : String -> List Header -> Http.Resolver Http.Error a -> Task Http.Error a
+getTask url headers resolver =
     Http.task
         { method = "GET"
-        , headers = []
+        , headers = headers
         , url = url
         , body = Http.emptyBody
         , resolver = resolver
@@ -198,6 +201,7 @@ getPostComments api =
     in
     getTask
         (makeRequestUrl api endpointPath queryParams)
+        noHeaders
         (requestResolver decoder)
 
 
@@ -223,6 +227,7 @@ getRepliesForComment api commentId =
     in
     getTask
         (makeRequestUrl api endpointPath queryParams)
+        noHeaders
         (requestResolver decoder)
 
 
@@ -280,3 +285,26 @@ userLogIn api data =
         (makeRequestUrl api endpointPath noParams)
         (Http.jsonBody signinJson)
         (requestResolver Input.userAndTokenDecoder)
+
+
+type alias GetUserFromSessionToken =
+    String -> Task Http.Error UserInfo
+
+
+getUserFromSessionToken : Api -> GetUserFromSessionToken
+getUserFromSessionToken api token =
+    let
+        endpointPath = "common/profile"
+
+        headers =
+            [ Http.header "Authorization" token
+            ]
+
+        decoder =
+            Input.apiResponseDecoder Input.userInfoDecoder
+    in
+    getTask
+        (makeRequestUrl api endpointPath noParams)
+        (headers)
+        (requestResolver decoder)
+

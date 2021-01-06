@@ -3,7 +3,7 @@ module Main exposing (main)
 import Ant.Button as Btn exposing (button)
 import Ant.Form.View as FV
 import Ant.Modal as Modal
-import Api exposing (Api)
+import Api 
 import Browser
 import Css exposing (..)
 import Data exposing (User(..))
@@ -53,11 +53,33 @@ init flags =
     case ( Url.fromString flags.apiEndpoint, Url.fromString flags.siteUrl ) of
         ( Just apiBaseUrl, Just siteUrl ) ->
             let
-                api = Api.apiFactory apiBaseUrl siteUrl
+                apiClient = Api.getApiClient apiBaseUrl siteUrl
+
+                model = NotReady apiClient flags.gitRef flags.anonymousUsername
+
+                getCurrentTimeCmd = Task.perform NewCurrentTime Time.now
             in
-            ( NotReady api flags.gitRef flags.anonymousUsername
-            , Task.perform NewCurrentTime Time.now
-            )
+            case flags.sessionToken of
+                Nothing ->
+                    ( model 
+                    , getCurrentTimeCmd
+                    )
+
+                -- If there's a session token,
+                -- we want to see if the token is valid
+                Just sessionToken ->
+                    let
+                        getUserCmd =
+                            Task.attempt
+                                ReceivedSessionResponse
+                                (apiClient.getUserFromSessionToken sessionToken)
+                    in
+                    ( model
+                    , Cmd.batch
+                        [ getCurrentTimeCmd
+                        , getUserCmd
+                        ]
+                    )
 
         _ ->
             ( Failed <| "invalid api endpoint or site url: " ++ "(" ++ flags.apiEndpoint ++ ", " ++ flags.siteUrl ++ ")"
@@ -71,12 +93,16 @@ init flags =
 
 
 -- SUBSCRIPTIONS
+
+-- Currently assuming that the first Msg emitted occurs
+-- after the time elapses, not immediately at time 0
 subscriptions : Model -> Sub Msg
 subscriptions _ =
     let
         fiveMinutes = 1000 * 60 * 5
     in
     Time.every fiveMinutes NewCurrentTime 
+
 
 
 -- VIEW

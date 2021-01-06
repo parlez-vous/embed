@@ -1,4 +1,4 @@
-module Data exposing (token, tokenToString, Token, User(..), UserInfoWithToken)
+module Data exposing (token, tokenToString, Token, User(..), UserInfo, UserInfoWithToken)
 
 import Time
 

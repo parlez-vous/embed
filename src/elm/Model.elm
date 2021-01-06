@@ -8,9 +8,9 @@ module Model exposing
 
 import Ant.Form.View as FV
 import Ant.Modal as Modal
-import Api exposing (Api)
+import Api exposing (ApiClient)
 import Browser.Navigation as Nav
-import Data exposing (User(..), UserInfoWithToken)
+import Data exposing (User(..), UserInfo, UserInfoWithToken)
 import Data.Comment as Comment exposing (Comment, CommentTree, updateComment)
 import Data.Cuid exposing (Cuid)
 import Data.SimpleWebData as SimpleWebData exposing (SimpleWebData, mapSimpleWebData)
@@ -31,6 +31,7 @@ type alias AppData =
     , commentTree : SimpleWebData CommentTree
     , currentTime : Time.Posix
     , apiClient : Api.ApiClient
+    -- , user : SimpleWebData User
     , user : User
 
     -- authentication stuff
@@ -44,7 +45,7 @@ type alias AppData =
 
 type Model
     = Ready AppData
-    | NotReady Api (Maybe String) (Maybe String)
+    | NotReady ApiClient (Maybe String) (Maybe String)
     | Failed String
 
 
@@ -77,6 +78,7 @@ type Msg
     | RepliesForCommentFetched Cuid (ApiRequestOutcome CommentTree)
     | ErrorReportSubmitted (ApiRequestOutcome ())
     | UserLoggedIn (ApiRequestOutcome UserInfoWithToken)
+    | ReceivedSessionResponse (ApiRequestOutcome UserInfo)
 
 
 -- handler functions exported for testing
@@ -84,11 +86,9 @@ type Msg
 -- handleCommentSubmitted : ( Time.Posix, Comment ) ->
 
 
-intoReadyState  : Maybe String -> Maybe String -> Api -> Time.Posix -> ( Model, Cmd Msg )
-intoReadyState gitRef maybeUsername api time =
+intoReadyState  : Maybe String -> Maybe String -> ApiClient -> Time.Posix -> ( Model, Cmd Msg )
+intoReadyState gitRef maybeUsername apiClient time =
     let
-        apiClient = Api.getApiClient api
-
         logInFormState =
             FV.idle
                 { usernameOrEmail = ""
@@ -123,11 +123,11 @@ update msg model =
         ( Failed reason, _ ) ->
             ( Failed reason, Cmd.none )
 
-        ( NotReady api gitRef maybeAnonymousUsername, NewCurrentTime time ) ->
-            intoReadyState gitRef maybeAnonymousUsername api time
+        ( NotReady apiClient gitRef maybeAnonymousUsername, NewCurrentTime time ) ->
+            intoReadyState gitRef maybeAnonymousUsername apiClient time
 
-        ( NotReady api gitRef maybeAnonymousUsername, _ ) ->
-            ( NotReady api gitRef maybeAnonymousUsername, Cmd.none )
+        ( NotReady apiClient gitRef maybeAnonymousUsername, _ ) ->
+            ( NotReady apiClient gitRef maybeAnonymousUsername, Cmd.none )
 
         ( Ready embedModel, _ ) ->
             updateReadyModel msg embedModel
@@ -221,6 +221,17 @@ updateReadyModel msg model =
                                 SimpleWebData.Success initialCommentResponse
                             }
 
+            ReceivedSessionResponse httpRequestResult ->
+                case httpRequestResult of
+                    Err e ->
+                        Utils.simpleUpdate model
+
+                    Ok user ->
+                        Utils.simpleUpdate
+                            { model
+                                | user = Authenticated user
+                            }
+                        
             RepliesForCommentFetched commentCuid httpRequestResult ->
                 case httpRequestResult of
                     Err e ->

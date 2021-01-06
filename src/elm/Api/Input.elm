@@ -2,6 +2,7 @@ module Api.Input exposing
     ( apiResponseDecoder
     , commentDecoder
     , commentTreeDecoder
+    , userInfoDecoder
     , userAndTokenDecoder
     )
 
@@ -10,7 +11,7 @@ module Api.Input exposing
 Includes JSON decoders and types.
 -}
 
-import Data exposing (UserInfoWithToken, token)
+import Data exposing (UserInfo, UserInfoWithToken, token)
 import Data.Comment exposing (Comment, CommentTree)
 import Json.Decode as D exposing (Decoder)
 import Time exposing (Posix)
@@ -94,25 +95,27 @@ commentTreeDecoder =
         (D.field "postId" D.string)
 
 
+
+userInfoDecoder : Decoder UserInfo
+userInfoDecoder =
+    D.map4
+        (\id username createdAt updatedAt ->
+            { id = id
+            , username = username
+            , created = createdAt
+            , updated = updatedAt
+            , isModerator = False
+            }
+        )
+        (D.field "id" D.string)
+        (D.field "email" D.string)
+        (D.field "createdAt" timestampDecoder)
+        (D.field "updatedAt" timestampDecoder)
+
+
 userAndTokenDecoder : Decoder UserInfoWithToken
 userAndTokenDecoder =
-    let
-        userDataDecoder =
-            D.map4
-                (\id username createdAt updatedAt ->
-                    { id = id
-                    , username = username
-                    , created = createdAt
-                    , updated = updatedAt
-                    , isModerator = False
-                    }
-                )
-                (D.field "id" D.string)
-                (D.field "email" D.string)
-                (D.field "createdAt" timestampDecoder)
-                (D.field "updatedAt" timestampDecoder)
-    in
     D.map2 (\userInfo tokenString -> (userInfo, token tokenString))
-        (apiResponseDecoder userDataDecoder)
+        (apiResponseDecoder userInfoDecoder)
         (D.field "sessionToken" D.string)
 
