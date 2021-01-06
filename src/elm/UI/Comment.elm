@@ -210,16 +210,10 @@ viewComments effects formatter pointers commentMap =
                         ]
 
                 RemoteData.Loading ->
-                    let
-                        disabledLoadingButton =
-                            link "loading..."
-                            |> Btn.disabled True
-                            |> Btn.toHtml
-                            |> fromUnstyled
-                    in
                     S.div []
                         [ viewComments_ pointerSet
-                        , disabledLoadingButton
+                        , S.div [ css [ marginBottom (px 15) ] ]
+                            [ secondaryText "loading ..." ]
                         ]
 
                 RemoteData.Failure error -> 
