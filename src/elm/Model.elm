@@ -390,9 +390,6 @@ updateReadyModel msg model =
                 ( model, tasks )
 
 
-            -- what does it mean to submit a comment while a SimpleWebData User is currently Loding?
-            -- Maybe change the type of CommentSubmitted to be
-            -- CommentSubmitted User result???
             CommentSubmitted user result ->
                 case result of
                     Err e ->
