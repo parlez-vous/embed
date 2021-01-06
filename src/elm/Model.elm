@@ -21,7 +21,7 @@ import RemoteData
 import Set
 import Task
 import Time
-import UI.AuthenticationInfo as AuthenticationInfo exposing (createAuthenticationPrompt)
+import UI.AuthenticationInfo as AuthenticationInfo
 import Utils
 
 
@@ -31,8 +31,7 @@ type alias AppData =
     , commentTree : SimpleWebData CommentTree
     , currentTime : Time.Posix
     , apiClient : Api.ApiClient
-    -- , user : SimpleWebData User
-    , user : User
+    , user : SimpleWebData User
 
     -- authentication stuff
     , modalOpen : Modal.ModalState
@@ -53,18 +52,20 @@ type Model
 type alias ApiRequestOutcome a = Result Http.Error a
 
 
+type alias AwaitingSessionServerResponse = Bool
+
 type Msg
     = TextAreaValueChanged String
     | SubmitComment User Cuid (Maybe Cuid) String
     | LoadRepliesForCommentRequested Cuid
     | GoToParlezVous
-    | NewCurrentTime Time.Posix
+    | NewCurrentTime AwaitingSessionServerResponse Time.Posix
 
     -- Authentication Stuff
     | ModalStateChanged Modal.ModalState
     | AuthenticationButtonClicked AuthenticationInfo.AuthenticationRequest
     | LogInFormChanged (FV.Model AuthenticationInfo.LogInValues)
-    | LogInRequested String String
+    | LogInRequested (Maybe String) String String
 
     -- comments have internal state
     -- (currently text area visibility and text area value)
@@ -73,12 +74,12 @@ type Msg
 
 
     -- Api outcomes
-    | CommentSubmitted (ApiRequestOutcome (Time.Posix, Comment))
+    | CommentSubmitted User (ApiRequestOutcome (Time.Posix, Comment))
     | InitialPostCommentsFetched (ApiRequestOutcome CommentTree)
     | RepliesForCommentFetched Cuid (ApiRequestOutcome CommentTree)
     | ErrorReportSubmitted (ApiRequestOutcome ())
-    | UserLoggedIn (ApiRequestOutcome UserInfoWithToken)
-    | ReceivedSessionResponse (ApiRequestOutcome UserInfo)
+    | UserLoggedIn (Maybe String) (ApiRequestOutcome UserInfoWithToken)
+    | ReceivedSessionResponse (Maybe String) (ApiRequestOutcome UserInfo)
 
 
 -- handler functions exported for testing
@@ -86,8 +87,18 @@ type Msg
 -- handleCommentSubmitted : ( Time.Posix, Comment ) ->
 
 
-intoReadyState  : Maybe String -> Maybe String -> ApiClient -> Time.Posix -> ( Model, Cmd Msg )
-intoReadyState gitRef maybeUsername apiClient time =
+{-| This function gets called once we receive the FIRST NewCurrentTime msg.
+
+This function should never be called again.
+-} 
+intoReadyState 
+    : Maybe String
+   -> Maybe String
+   -> ApiClient
+   -> AwaitingSessionServerResponse
+   -> Time.Posix
+   -> ( Model, Cmd Msg )
+intoReadyState gitRef anonAuthorName apiClient awaitingSessionServerResponse time =
     let
         logInFormState =
             FV.idle
@@ -97,6 +108,19 @@ intoReadyState gitRef maybeUsername apiClient time =
                     , textVisible = False
                     }
                 }
+        
+
+        -- On the first invocation to NewCurrent time (on `init`)
+        -- we OPTIONALLY send an API request to the server to get a user
+        -- IFF there is a session token in the user's browser.
+        -- Otherwise, we don't even attempt to authenticate and default to
+        -- the anonymous username that may or may not be stored in localstorage
+        user =
+            if awaitingSessionServerResponse then
+                SimpleWebData.Loading
+            else
+                SimpleWebData.Success <| Anonymous anonAuthorName
+
 
         initialAppData =
             { textAreaValue = ""
@@ -106,7 +130,7 @@ intoReadyState gitRef maybeUsername apiClient time =
             , currentTime = time
             , apiClient = apiClient
             , reporter = ErrorReporting.reporterFactory apiClient ErrorReportSubmitted gitRef
-            , user = Anonymous maybeUsername
+            , user = user
             }
 
         apiRequest = Task.attempt InitialPostCommentsFetched apiClient.getPostComments
@@ -123,8 +147,8 @@ update msg model =
         ( Failed reason, _ ) ->
             ( Failed reason, Cmd.none )
 
-        ( NotReady apiClient gitRef maybeAnonymousUsername, NewCurrentTime time ) ->
-            intoReadyState gitRef maybeAnonymousUsername apiClient time
+        ( NotReady apiClient gitRef maybeAnonymousUsername, NewCurrentTime sessionInfo time) ->
+            intoReadyState gitRef maybeAnonymousUsername apiClient sessionInfo time 
 
         ( NotReady apiClient gitRef maybeAnonymousUsername, _ ) ->
             ( NotReady apiClient gitRef maybeAnonymousUsername, Cmd.none )
@@ -144,10 +168,9 @@ updateReadyModel : Msg -> AppData -> ( Model, Cmd Msg )
 updateReadyModel msg model =
     Tuple.mapFirst Ready <|
         case msg of
-            NewCurrentTime time ->
+            NewCurrentTime sessionInfo time ->
                 Utils.simpleUpdate 
                     { model | currentTime = time }
-
 
             GoToParlezVous ->
                 ( model
@@ -160,14 +183,18 @@ updateReadyModel msg model =
             LogInFormChanged newState ->
                 Utils.simpleUpdate { model | logInFormState = newState }
 
-            LogInRequested usernameOrEmail password ->
+            -- maybeAnonymousUsername is the current value of the user's
+            -- anonymousUsername that we use in UserLoggedIn as a fall back when log in fails
+            LogInRequested maybeAnonymousUsername usernameOrEmail password ->
                 let
                     logInFormState = model.logInFormState
 
                     newModel =
-                        { model | logInFormState =
-                            { logInFormState | state = FV.Loading
-                            }
+                        { model
+                            | logInFormState =
+                                { logInFormState | state = FV.Loading
+                                }
+                            , user = SimpleWebData.Loading
                         }
 
                     _ = Debug.log "LogInRequested:" (usernameOrEmail ++ ", " ++ password)
@@ -177,7 +204,7 @@ updateReadyModel msg model =
                         , password = password
                         }
 
-                    logInCmd = Task.attempt UserLoggedIn (model.apiClient.userLogIn logInData)
+                    logInCmd = Task.attempt (UserLoggedIn maybeAnonymousUsername) (model.apiClient.userLogIn logInData)
                 in
                 ( newModel, logInCmd )
 
@@ -187,14 +214,18 @@ updateReadyModel msg model =
             AuthenticationButtonClicked request ->
                 Utils.simpleUpdate { model | modalOpen = True }
 
-            UserLoggedIn httpRequestResult ->
+            UserLoggedIn fallbackAnonUsername httpRequestResult ->
                 case httpRequestResult of
                     Err e ->
                         let
                             _ = Debug.todo "report this" e
                             _ = Debug.todo "UserLoggedIn Error: " e
                         in
-                        Utils.simpleUpdate { model | modalOpen = False }
+                        Utils.simpleUpdate
+                            { model
+                                | modalOpen = False
+                                , user = SimpleWebData.Success <| Anonymous fallbackAnonUsername
+                            }
 
                     Ok (user, userSessionToken) ->
                         let
@@ -204,7 +235,12 @@ updateReadyModel msg model =
                                 , Data.tokenToString userSessionToken
                                 )
                         in
-                        ( { model | modalOpen = False }, cmd )
+                        ( { model
+                            | modalOpen = False
+                            , user = SimpleWebData.Success <| Authenticated user
+                          }
+                        , cmd
+                        )
 
 
             InitialPostCommentsFetched httpRequestResult ->
@@ -221,15 +257,41 @@ updateReadyModel msg model =
                                 SimpleWebData.Success initialCommentResponse
                             }
 
-            ReceivedSessionResponse httpRequestResult ->
+            ReceivedSessionResponse cachedMaybeAnonUsername httpRequestResult ->
                 case httpRequestResult of
-                    Err e ->
-                        Utils.simpleUpdate model
+                    Err httpError ->
+                        let
+                            newModel =
+                                { model
+                                    | user = SimpleWebData.Success <| Anonymous cachedMaybeAnonUsername
+                                }
+
+                            cmd =
+                                case httpError of 
+                                    Http.BadStatus statusInt ->
+                                        -- token expired
+                                        if statusInt == 401 then
+                                            Utils.removeSessionToken ()
+                                        else
+                                            -- TODO: report unexpected HTTP status codes here
+                                            Cmd.none
+
+                                    _ ->
+                                        -- TODO: handle other HTTP errors
+                                        -- https://package.elm-lang.org/packages/elm/http/latest/Http#Error
+                                        Cmd.none
+
+                        in
+                        ( { model
+                            | user = SimpleWebData.Success <| Anonymous cachedMaybeAnonUsername
+                          }
+                        , cmd
+                        )
 
                     Ok user ->
                         Utils.simpleUpdate
                             { model
-                                | user = Authenticated user
+                                | user = SimpleWebData.Success <| Authenticated user
                             }
                         
             RepliesForCommentFetched commentCuid httpRequestResult ->
@@ -305,7 +367,7 @@ updateReadyModel msg model =
                 )
 
         
-            SubmitComment maybeAnonymousUsername postId maybeParentCommentId commentBody ->
+            SubmitComment user postId maybeParentCommentId commentBody ->
                 let
                     -- Task Stuff 
                     addCommentTask = 
@@ -313,7 +375,7 @@ updateReadyModel msg model =
                             commentBody
                             postId
                             maybeParentCommentId
-                            maybeAnonymousUsername
+                            user 
 
                     wrapCommentInTimestamp comment =
                         Time.now
@@ -322,13 +384,16 @@ updateReadyModel msg model =
                     tasks =
                         addCommentTask
                         |> Task.andThen wrapCommentInTimestamp
-                        |> Task.attempt CommentSubmitted
+                        |> Task.attempt (CommentSubmitted user)
                 in
                 -- update the time, then send the request
                 ( model, tasks )
 
 
-            CommentSubmitted result ->
+            -- what does it mean to submit a comment while a SimpleWebData User is currently Loding?
+            -- Maybe change the type of CommentSubmitted to be
+            -- CommentSubmitted User result???
+            CommentSubmitted user result ->
                 case result of
                     Err e ->
                         Utils.simpleUpdate model
@@ -360,7 +425,7 @@ updateReadyModel msg model =
                                     newComment.createdAt
 
                         in
-                        case model.user of
+                        case user of
                             Anonymous maybeAnonymousUsername ->
                                 case maybeAnonymousUsername of
                                     Just _ ->
@@ -376,7 +441,10 @@ updateReadyModel msg model =
                                     --   - localstorage (for future sessions)
                                     Nothing ->
                                         ( { newModel
-                                            | user = Anonymous <| Just newComment.anonymousAuthorName 
+                                            | user = 
+                                                Just newComment.anonymousAuthorName
+                                                |> Anonymous
+                                                |> SimpleWebData.Success
                                           }
 
                                         , Cmd.batch
@@ -388,7 +456,7 @@ updateReadyModel msg model =
                                             ]
                                         )
                                     
-                            Authenticated user ->
+                            Authenticated userInfo ->
                                 ( newModel, reporterMsg )
 
             CommentChanged comment ->

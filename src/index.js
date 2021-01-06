@@ -55,8 +55,8 @@ app.ports.writeToLocalStorage.subscribe(([key, value]) => {
   localStorage.setItem(key, value)
 })
 
-//
-//app.ports.removeToken.subscribe(() => {
-  //localStorage.removeItem(sessionTokenKey)
-//})
+
+app.ports.removeSessionToken.subscribe(() => {
+  localStorage.removeItem(sessionTokenKey)
+})
 

@@ -23,7 +23,7 @@ type alias TimeFormatter = Time.Posix -> String
 type alias Effects msg =
     { loadRepliesForComment : Cuid -> msg
     , updateComment : Comment -> msg
-    , submitReply : Cuid -> String -> msg
+    , submitReply : Cuid -> String -> Maybe msg
     }
 
 type CommentPointers msg
@@ -102,9 +102,12 @@ replyTextarea comment effects =
                         Tuple.mapSecond (always val) comment.textAreaState
                     }
 
+        textAreaAction =
+            effects.submitReply comment.id textAreaValue
+
         textArea =
             TextArea.replyTextArea comment updateTextArea
-            |> TextArea.toHtml (effects.submitReply comment.id textAreaValue)
+            |> TextArea.toHtml textAreaAction
     in
     if textAreaVisible then
         textArea

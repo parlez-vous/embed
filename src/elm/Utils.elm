@@ -1,4 +1,4 @@
-port module Utils exposing (humanReadableTimestamp, getPathFromUrl, writeToLocalStorage, simpleUpdate, timeDiff)
+port module Utils exposing (humanReadableTimestamp, getPathFromUrl, removeSessionToken, writeToLocalStorage, simpleUpdate, timeDiff)
 
 import Time exposing (Posix, posixToMillis)
 import Url exposing (Url)
@@ -17,8 +17,7 @@ simpleUpdate m = ( m, Cmd.none )
 
 -- ( String = key, String = value )
 port writeToLocalStorage : ( String, String ) -> Cmd msg
-
--- port removeToken : () -> Cmd msg
+port removeSessionToken : () -> Cmd msg
 
 
 

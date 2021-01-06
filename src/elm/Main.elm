@@ -8,6 +8,7 @@ import Browser
 import Css exposing (..)
 import Data exposing (User(..))
 import Data.Comment exposing (updateComment)
+import Data.Cuid exposing (Cuid)
 import Data.SimpleWebData as SimpleWebData exposing (SimpleWebData, mapSimpleWebData)
 import ErrorReporting exposing (ReporterClient)
 import Html exposing (Html)
@@ -18,7 +19,7 @@ import Model exposing (AppData, Model(..), Msg(..))
 import Task
 import Time
 import UI.AppShell exposing (appShell)
-import UI.AuthenticationInfo as AuthenticationInfo exposing (createAuthenticationPrompt)
+import UI.AuthenticationInfo as AuthenticationInfo exposing (viewAuthenticationInfo)
 import UI.Comment exposing (viewCommentsSection)
 import UI.TextArea as TextArea exposing (topLevelTextArea)
 import Url
@@ -57,26 +58,27 @@ init flags =
 
                 model = NotReady apiClient flags.gitRef flags.anonymousUsername
 
-                getCurrentTimeCmd = Task.perform NewCurrentTime Time.now
+                getCurrentTimeCmd awaitingSessionServerResponse =
+                    Task.perform ( NewCurrentTime awaitingSessionServerResponse ) Time.now
             in
             case flags.sessionToken of
                 Nothing ->
                     ( model 
-                    , getCurrentTimeCmd
+                    , getCurrentTimeCmd False
                     )
 
-                -- If there's a session token,
-                -- we want to see if the token is valid
                 Just sessionToken ->
                     let
+                        -- If there's a session token,
+                        -- we want to retrieve the user from the server
                         getUserCmd =
                             Task.attempt
-                                ReceivedSessionResponse
+                                (ReceivedSessionResponse flags.anonymousUsername)
                                 (apiClient.getUserFromSessionToken sessionToken)
                     in
                     ( model
                     , Cmd.batch
-                        [ getCurrentTimeCmd
+                        [ getCurrentTimeCmd True
                         , getUserCmd
                         ]
                     )
@@ -101,22 +103,31 @@ subscriptions _ =
     let
         fiveMinutes = 1000 * 60 * 5
     in
-    Time.every fiveMinutes NewCurrentTime 
+    Time.every fiveMinutes (NewCurrentTime False)
 
 
 
 -- VIEW
 
+intoSubmitCommentAction : Cuid -> Maybe Cuid -> String -> SimpleWebData User -> Maybe Msg
+intoSubmitCommentAction postId parentCommentId textAreaValue webDatauser =
+    case webDatauser of 
+        SimpleWebData.Success user ->
+            Just (SubmitComment user postId parentCommentId textAreaValue)
 
-authenticationForm : FV.Model AuthenticationInfo.LogInValues -> Html.Html Msg
-authenticationForm = 
+        _ ->
+            Nothing
+
+
+authenticationForm : (String -> String -> Msg) -> FV.Model AuthenticationInfo.LogInValues -> Html.Html Msg
+authenticationForm formSubmitMsg = 
     FV.toHtml
         { onChange = LogInFormChanged
         , action = "submit"
         , loading = "logging in..."
         , validation = FV.ValidateOnSubmit
         }
-        (AuthenticationInfo.logInForm LogInRequested)
+        (AuthenticationInfo.logInForm formSubmitMsg)
 
 
 viewApp : AppData -> Styled.Html Msg
@@ -138,16 +149,25 @@ viewApp model =
                             { loadRepliesForComment = LoadRepliesForCommentRequested
                             , updateComment = CommentChanged
                             , submitReply = \commentId replyTextAreaValue ->
-                                SubmitComment model.user commentTree.postId (Just commentId) replyTextAreaValue
+                                intoSubmitCommentAction
+                                    commentTree.postId
+                                    (Just commentId)
+                                    replyTextAreaValue
+                                    model.user
                             }
 
                         commentsSection =
                             viewCommentsSection actions timeStampFormatter commentTree
 
                         textAreaAction =
-                            SubmitComment model.user commentTree.postId Nothing model.textAreaValue
+                            intoSubmitCommentAction
+                                commentTree.postId
+                                Nothing
+                                model.textAreaValue
+                                model.user
 
-                        authenticationPrompt = createAuthenticationPrompt AuthenticationButtonClicked
+
+                        authenticationPrompt = viewAuthenticationInfo model.user AuthenticationButtonClicked
 
                         textArea =
                             topLevelTextArea TextAreaValueChanged model.textAreaValue authenticationPrompt
@@ -179,11 +199,25 @@ viewApp model =
                 ]
 
         modal =
-            Modal.modal (authenticationForm model.logInFormState)
-            |> Modal.withTitle "Log In"
-            |> Modal.withOnCancel ModalStateChanged 
-            |> Modal.toHtml model.modalOpen
-            |> fromUnstyled
+            case model.user of
+                SimpleWebData.Success user ->
+                    case user of 
+                        Anonymous maybeAnonymousUsername ->
+                            let
+                                formSubmitMsg = LogInRequested maybeAnonymousUsername
+                            in
+                            Modal.modal (authenticationForm formSubmitMsg model.logInFormState)
+                            |> Modal.withTitle "Log In"
+                            |> Modal.withOnCancel ModalStateChanged 
+                            |> Modal.toHtml model.modalOpen
+                            |> fromUnstyled
+
+
+                        Authenticated _ ->
+                            Styled.text ""
+
+                _ ->
+                    Styled.text ""
     in
     Styled.div []
         [ modal

@@ -34,17 +34,30 @@ topLevelTextArea updateTextArea textAreaValue extraInfo =
 
 
 
-toHtml : msg -> TextArea msg -> Html msg
-toHtml submit (TextArea (input, value, maybeExtraInfo)) =
+toHtml : Maybe msg -> TextArea msg -> Html msg
+toHtml maybeSubmit (TextArea (input, value, maybeExtraInfo)) =
     let
         htmlTextArea =
             Input.toHtml value input
             |> fromUnstyled
 
+        noActionAvailable =
+            case maybeSubmit of
+                Just _ -> False
+                Nothing -> True
+
+        maybeBindOnClick btn =
+            case maybeSubmit of
+                Just submit ->
+                    Btn.onClick submit btn
+
+                Nothing ->
+                    btn
+
         submitCommentButton =
             button "Add Comment"
-            |> Btn.disabled (String.length value == 0)
-            |> Btn.onClick submit
+            |> Btn.disabled (String.length value == 0 || noActionAvailable)
+            |> maybeBindOnClick
             |> Btn.toHtml
             |> fromUnstyled
 

@@ -1,9 +1,11 @@
-module UI.AuthenticationInfo exposing (createAuthenticationPrompt, logInForm, LogInValues, AuthenticationRequest(..))
+module UI.AuthenticationInfo exposing (viewAuthenticationInfo, logInForm, LogInValues, AuthenticationRequest(..))
 
 import Ant.Form as Form exposing (Form)
 import Ant.Form.PasswordField exposing (PasswordFieldValue)
 import Ant.Theme as AntTheme
 import Css exposing (..)
+import Data exposing (User(..))
+import Data.SimpleWebData as SimpleWebData exposing (SimpleWebData)
 import Html.Styled as Html exposing (..)
 import Html.Styled.Attributes exposing (css)
 import Html.Styled.Events exposing (onClick)
@@ -58,8 +60,8 @@ logInForm tagger =
 
 
 
-createAuthenticationPrompt : (AuthenticationRequest -> msg) -> Html msg
-createAuthenticationPrompt tagger =
+viewAuthenticationInfo : SimpleWebData User -> (AuthenticationRequest -> msg) -> Html msg
+viewAuthenticationInfo webDataUser tagger =
     let
         createAuthButton textValue action =
             button
@@ -83,13 +85,30 @@ createAuthenticationPrompt tagger =
             |> color
 
         authenticationPrompt = 
-            div
-                [ css [ textColor ] ]
-                [ createAuthButton "Log in" LogIn
-                , text " or "
-                , createAuthButton "sign up" SignUp
-                , text " for a better experience."
-                ]
+            case webDataUser of
+                SimpleWebData.Success user ->
+                    case user of
+                        Authenticated userInfo ->
+                            [ text ("Logged in as " ++ userInfo.username)
+                            ]
+
+                        Anonymous _ ->
+                            [ createAuthButton "Log in" LogIn
+                            , text " or "
+                            , createAuthButton "sign up" SignUp
+                            , text " for a better experience."
+                            ]
+
+                SimpleWebData.Loading ->
+                    [ text "Loading ..."
+                    ]
+
+                SimpleWebData.Failure _ ->
+                    [ text "Something went wrong while verifying your session."
+                    ]
+
+        contents =
+            div [ css [ textColor ] ] authenticationPrompt
     in
-    Html.map tagger authenticationPrompt
+    Html.map tagger contents
 
