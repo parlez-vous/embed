@@ -264,18 +264,14 @@ updateReadyModel msg model =
                         }
                 in
                 case httpRequestResult of
+                    -- TODO: report this
                     Err e ->
-                        let
-                            _ = Debug.todo "report this" e
-                            _ = Debug.todo "UserLoggedIn Error: " e
-                        in
                         Utils.simpleUpdate
                             (updateModel <| Anonymous fallbackAnonUsername)
 
 
                     Ok (user, userSessionToken) ->
                         let
-                            _ = Debug.log "we did it!" ""
                             cmd = Utils.writeToLocalStorage
                                 ( "sessionToken"
                                 , Data.tokenToString userSessionToken
