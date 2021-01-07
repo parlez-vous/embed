@@ -72,13 +72,7 @@ type Msg
 
     -- Authentication Stuff
     | AuthenticationButtonClicked AuthenticationInfo.AuthenticationRequest
-
-
-    -- | ModalClosed Modal.ModalState
-    -- | LogInFormChanged (FV.Model AuthenticationInfo.LogInValues)
-    -- | SignUpFormChanged (FV.Model AuthenticationInfo.SignUpValues)
     | ModalStateChanged ModalState
-
     | LogInRequested LogInFormState (Maybe String) String String
     | SignUpRequested SignUpFormState (Maybe String) String String String
 
