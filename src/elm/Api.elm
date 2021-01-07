@@ -31,6 +31,7 @@ type alias ApiClient =
     , addComment : AddComment 
     , reportError : ReportError
     , userLogIn : LogIn
+    , userSignUp : SignUp
     , getUserFromSessionToken : GetUserFromSessionToken
     }
 
@@ -46,6 +47,7 @@ getApiClient baseUrl siteUrl =
     , addComment = addComment api
     , reportError = reportError api
     , userLogIn = userLogIn api
+    , userSignUp = userSignUp api
     , getUserFromSessionToken = getUserFromSessionToken api
     }
 
@@ -286,6 +288,27 @@ userLogIn api data =
         (Http.jsonBody signinJson)
         (requestResolver Input.userAndTokenDecoder)
 
+
+type alias SignUp =
+    Output.SignUp -> Task Http.Error UserInfoWithToken
+
+
+userSignUp : Api -> SignUp
+userSignUp api data =
+    let
+        endpointPath = "common/signup"
+
+        signUpJson =
+            E.object
+                [ ( "username", E.string data.username )
+                , ( "email", E.string data.email )
+                , ( "password", E.string data.password )
+                ]
+    in
+    postTask
+        (makeRequestUrl api endpointPath noParams)
+        (Http.jsonBody signUpJson)
+        (requestResolver Input.userAndTokenDecoder)
 
 type alias GetUserFromSessionToken =
     String -> Task Http.Error UserInfo

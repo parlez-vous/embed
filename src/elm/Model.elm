@@ -157,6 +157,15 @@ update msg model =
 
 
 
+setFormSubmittingState : (FV.Model a -> ModalState) -> FV.Model a -> AppData -> AppData
+setFormSubmittingState intoModalState formState appData =
+    { appData
+        | modal =
+            intoModalState { formState | state = FV.Loading }
+        , user = SimpleWebData.Loading
+    }
+
+
 updateReadyModel : Msg -> AppData -> ( Model, Cmd Msg )
 updateReadyModel msg model =
     Tuple.mapFirst Ready <|
@@ -177,12 +186,6 @@ updateReadyModel msg model =
             -- anonymousUsername that we use in UserLoggedIn as a fall back when log in fails
             LogInRequested logInFormState maybeAnonymousUsername usernameOrEmail password ->
                 let
-                    newModel =
-                        { model 
-                            | modal = ShowingLogInForm { logInFormState | state = FV.Loading }
-                            , user = SimpleWebData.Loading
-                        }
-
                     logInData =
                         { usernameOrEmail = usernameOrEmail
                         , password = password
@@ -193,10 +196,27 @@ updateReadyModel msg model =
                             (UserLoggedIn maybeAnonymousUsername)
                             (model.apiClient.userLogIn logInData)
                 in
-                ( newModel, logInCmd )
+                ( setFormSubmittingState ShowingLogInForm logInFormState model 
+                , logInCmd
+                )
 
             SignUpRequested signUpFormState maybeAnonymousUsername username email password ->
-                Utils.simpleUpdate model
+                let
+                    signUpData =
+                        { username = username
+                        , email = email
+                        , password = password
+                        }
+
+                    signUpCmd =
+                        Task.attempt
+                            (UserLoggedIn maybeAnonymousUsername)
+                            (model.apiClient.userSignUp signUpData)
+                in
+                ( setFormSubmittingState ShowingSignUpForm signUpFormState model
+                , signUpCmd
+                )
+
 
             TextAreaValueChanged newValue ->
                 Utils.simpleUpdate { model | textAreaValue = newValue }
