@@ -163,12 +163,6 @@ update msg model =
 
 
 
-simpleUpdate : AppData -> ( Model, Cmd Msg )
-simpleUpdate appData =
-    Utils.simpleUpdate appData
-    |> Tuple.mapFirst Ready
-
-
 updateReadyModel : Msg -> AppData -> ( Model, Cmd Msg )
 updateReadyModel msg model =
     Tuple.mapFirst Ready <|
