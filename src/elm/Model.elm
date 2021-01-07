@@ -2,6 +2,7 @@ module Model exposing
     ( AppData
     , Model(..)
     , Msg(..)
+    , ModalState(..)
     , update
     )
 
@@ -25,6 +26,16 @@ import UI.AuthenticationInfo as AuthenticationInfo
 import Utils
 
 
+type alias LogInFormState = FV.Model AuthenticationInfo.LogInValues
+type alias SignUpFormState = FV.Model AuthenticationInfo.SignUpValues
+
+
+type ModalState
+    = Hidden
+    | ShowingLogInForm LogInFormState
+    | ShowingSignUpForm SignUpFormState
+
+
 
 type alias AppData =
     { textAreaValue : String
@@ -33,9 +44,7 @@ type alias AppData =
     , apiClient : Api.ApiClient
     , user : SimpleWebData User
 
-    -- authentication stuff
-    , modalOpen : Modal.ModalState
-    , logInFormState : FV.Model AuthenticationInfo.LogInValues
+    , modal : ModalState
     
     -- for telemetry
     , reporter : ReporterClient Msg
@@ -62,10 +71,17 @@ type Msg
     | NewCurrentTime AwaitingSessionServerResponse Time.Posix
 
     -- Authentication Stuff
-    | ModalStateChanged Modal.ModalState
     | AuthenticationButtonClicked AuthenticationInfo.AuthenticationRequest
-    | LogInFormChanged (FV.Model AuthenticationInfo.LogInValues)
-    | LogInRequested (Maybe String) String String
+
+
+    -- | ModalClosed Modal.ModalState
+    -- | LogInFormChanged (FV.Model AuthenticationInfo.LogInValues)
+    -- | SignUpFormChanged (FV.Model AuthenticationInfo.SignUpValues)
+    | ModalStateChanged ModalState
+
+    | LogInRequested LogInFormState (Maybe String) String String
+    | SignUpRequested SignUpFormState (Maybe String) String String String
+
 
     -- comments have internal state
     -- (currently text area visibility and text area value)
@@ -100,16 +116,6 @@ intoReadyState
    -> ( Model, Cmd Msg )
 intoReadyState gitRef anonAuthorName apiClient awaitingSessionServerResponse time =
     let
-        logInFormState =
-            FV.idle
-                { usernameOrEmail = ""
-                , password =
-                    { value = ""
-                    , textVisible = False
-                    }
-                }
-        
-
         -- On the first invocation to NewCurrent time (on `init`)
         -- we OPTIONALLY send an API request to the server to get a user
         -- IFF there is a session token in the user's browser.
@@ -124,8 +130,7 @@ intoReadyState gitRef anonAuthorName apiClient awaitingSessionServerResponse tim
 
         initialAppData =
             { textAreaValue = ""
-            , modalOpen = False
-            , logInFormState = logInFormState
+            , modal = Hidden
             , commentTree = SimpleWebData.Loading
             , currentTime = time
             , apiClient = apiClient
@@ -178,43 +183,78 @@ updateReadyModel msg model =
                 )
 
             ModalStateChanged newState ->
-                Utils.simpleUpdate { model | modalOpen = newState } 
-
-            LogInFormChanged newState ->
-                Utils.simpleUpdate { model | logInFormState = newState }
+                Utils.simpleUpdate { model | modal = newState }
 
             -- maybeAnonymousUsername is the current value of the user's
             -- anonymousUsername that we use in UserLoggedIn as a fall back when log in fails
-            LogInRequested maybeAnonymousUsername usernameOrEmail password ->
+            LogInRequested logInFormState maybeAnonymousUsername usernameOrEmail password ->
                 let
-                    logInFormState = model.logInFormState
-
                     newModel =
-                        { model
-                            | logInFormState =
-                                { logInFormState | state = FV.Loading
-                                }
+                        { model 
+                            | modal = ShowingLogInForm { logInFormState | state = FV.Loading }
                             , user = SimpleWebData.Loading
                         }
-
-                    _ = Debug.log "LogInRequested:" (usernameOrEmail ++ ", " ++ password)
 
                     logInData =
                         { usernameOrEmail = usernameOrEmail
                         , password = password
                         }
 
-                    logInCmd = Task.attempt (UserLoggedIn maybeAnonymousUsername) (model.apiClient.userLogIn logInData)
+                    logInCmd =
+                        Task.attempt
+                            (UserLoggedIn maybeAnonymousUsername)
+                            (model.apiClient.userLogIn logInData)
                 in
                 ( newModel, logInCmd )
+
+            SignUpRequested signUpFormState maybeAnonymousUsername username email password ->
+                Utils.simpleUpdate model
 
             TextAreaValueChanged newValue ->
                 Utils.simpleUpdate { model | textAreaValue = newValue }
 
             AuthenticationButtonClicked request ->
-                Utils.simpleUpdate { model | modalOpen = True }
+                let
+                    emptyPasswordField =
+                        { value = ""
+                        , textVisible = False
+                        }
+
+                    logInFormState =
+                        FV.idle
+                            { usernameOrEmail = ""
+                            , password = emptyPasswordField
+                            }
+                    
+                    signUpFormState =
+                        FV.idle
+                            { username = ""
+                            , email = ""
+                            , password = emptyPasswordField
+                            , passwordConfirm = emptyPasswordField
+                            }
+
+                    modalState =
+                        case request of
+                            AuthenticationInfo.LogIn ->
+                                ShowingLogInForm logInFormState
+
+                            AuthenticationInfo.SignUp ->
+                                ShowingSignUpForm signUpFormState
+                in
+                Utils.simpleUpdate
+                    { model | modal = modalState
+                    }
 
             UserLoggedIn fallbackAnonUsername httpRequestResult ->
+                let
+                    updateModel user =
+                        { model
+                            | modal = Hidden
+                            , user = SimpleWebData.Success user
+                            
+                        }
+                in
                 case httpRequestResult of
                     Err e ->
                         let
@@ -222,10 +262,8 @@ updateReadyModel msg model =
                             _ = Debug.todo "UserLoggedIn Error: " e
                         in
                         Utils.simpleUpdate
-                            { model
-                                | modalOpen = False
-                                , user = SimpleWebData.Success <| Anonymous fallbackAnonUsername
-                            }
+                            (updateModel <| Anonymous fallbackAnonUsername)
+
 
                     Ok (user, userSessionToken) ->
                         let
@@ -235,10 +273,7 @@ updateReadyModel msg model =
                                 , Data.tokenToString userSessionToken
                                 )
                         in
-                        ( { model
-                            | modalOpen = False
-                            , user = SimpleWebData.Success <| Authenticated user
-                          }
+                        ( updateModel <| Authenticated user
                         , cmd
                         )
 

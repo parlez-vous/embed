@@ -15,7 +15,7 @@ import Html exposing (Html)
 import Html.Styled as Styled exposing (toUnstyled, fromUnstyled)
 import Html.Styled.Attributes as Attr exposing (css)
 import Http
-import Model exposing (AppData, Model(..), Msg(..))
+import Model exposing (AppData, Model(..), ModalState(..), Msg(..))
 import Task
 import Time
 import UI.AppShell exposing (appShell)
@@ -119,15 +119,52 @@ intoSubmitCommentAction postId parentCommentId textAreaValue webDatauser =
             Nothing
 
 
-authenticationForm : (String -> String -> Msg) -> FV.Model AuthenticationInfo.LogInValues -> Html.Html Msg
-authenticationForm formSubmitMsg = 
-    FV.toHtml
-        { onChange = LogInFormChanged
-        , action = "submit"
-        , loading = "logging in..."
-        , validation = FV.ValidateOnSubmit
-        }
-        (AuthenticationInfo.logInForm formSubmitMsg)
+viewAuthenticationForm : ModalState -> Maybe String -> Styled.Html Msg
+viewAuthenticationForm modalState anonymousUsername =
+    let
+        viewModal contents title =
+            Modal.modal contents
+            |> Modal.withTitle title
+            |> Modal.withOnCancel (\_ -> ModalStateChanged Hidden)
+            |> Modal.toHtml True
+            |> fromUnstyled
+    in
+    case modalState of
+        Hidden ->
+            Styled.text ""
+
+        ShowingLogInForm logInFormState ->
+            let
+                formSubmitMsg = LogInRequested logInFormState anonymousUsername 
+
+                logInForm =
+                    FV.toHtml
+                        { onChange = ModalStateChanged << ShowingLogInForm
+                        , action = "submit"
+                        , loading = "logging in..."
+                        , validation = FV.ValidateOnSubmit
+                        }
+                        (AuthenticationInfo.logInForm formSubmitMsg)
+                        logInFormState
+            in
+            viewModal logInForm "Log In"
+
+        ShowingSignUpForm signUpFormState ->
+            let
+                formSubmitMsg = SignUpRequested signUpFormState anonymousUsername
+
+                signUpForm =
+                    FV.toHtml
+                        { onChange = ModalStateChanged << ShowingSignUpForm
+                        , action = "submit"
+                        , loading = "signing up..."
+                        , validation = FV.ValidateOnSubmit
+                        }
+                        (AuthenticationInfo.signUpForm formSubmitMsg)
+                        signUpFormState
+            in
+            viewModal signUpForm "Sign Up"
+
 
 
 viewApp : AppData -> Styled.Html Msg
@@ -203,15 +240,7 @@ viewApp model =
                 SimpleWebData.Success user ->
                     case user of 
                         Anonymous maybeAnonymousUsername ->
-                            let
-                                formSubmitMsg = LogInRequested maybeAnonymousUsername
-                            in
-                            Modal.modal (authenticationForm formSubmitMsg model.logInFormState)
-                            |> Modal.withTitle "Log In"
-                            |> Modal.withOnCancel ModalStateChanged 
-                            |> Modal.toHtml model.modalOpen
-                            |> fromUnstyled
-
+                            viewAuthenticationForm model.modal maybeAnonymousUsername
 
                         Authenticated _ ->
                             Styled.text ""

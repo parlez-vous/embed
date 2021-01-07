@@ -1,4 +1,11 @@
-module UI.AuthenticationInfo exposing (viewAuthenticationInfo, logInForm, LogInValues, AuthenticationRequest(..))
+module UI.AuthenticationInfo exposing
+    ( viewAuthenticationInfo
+    , logInForm
+    , LogInValues
+    , signUpForm
+    , SignUpValues
+    , AuthenticationRequest(..)
+    )
 
 import Ant.Form as Form exposing (Form)
 import Ant.Form.PasswordField exposing (PasswordFieldValue)
@@ -19,13 +26,13 @@ type alias LogInValues =
     , password : PasswordFieldValue
     }
 
-{-
-type alias SignUp =
+type alias SignUpValues =
     { username : String
     , email : String
-    , password : String
+    , password : PasswordFieldValue
+    , passwordConfirm : PasswordFieldValue
     }
--}
+
 
 logInForm : (String -> String -> msg) -> Form LogInValues msg
 logInForm tagger =
@@ -57,6 +64,78 @@ logInForm tagger =
     Form.succeed tagger
     |> Form.append usernameOrEmailField
     |> Form.append passwordField
+
+
+signUpForm : (String -> String -> String -> msg) -> Form SignUpValues msg
+signUpForm tagger =
+    let
+        usernameField = 
+            Form.inputField
+                { parser = Ok
+                , value = .username
+                , update = \new values -> { values | username = new }
+                , error = always Nothing
+                , attributes =
+                    { label = "Username"
+                    , placeholder = ""
+                    }
+                }
+
+        emailField = 
+            Form.inputField
+                { parser = Ok
+                , value = .email
+                , update = \new values -> { values | email = new }
+                , error = always Nothing
+                , attributes =
+                    { label = "Email"
+                    , placeholder = ""
+                    }
+                }
+
+        passwordField = 
+            Form.passwordField
+                { parser = \{ value } -> Ok value
+                , value = .password
+                , update = \new values -> { values | password = new }
+                , error = always Nothing
+                , attributes =
+                    { label = "Password"
+                    , placeholder = ""
+                    }
+                }
+
+
+        passwordConfirmField = 
+            Form.meta
+                (\{ password } ->
+                    Form.passwordField
+                        { parser =
+                            \{ value } ->
+                                if value == password.value then
+                                    Ok value
+                                else
+                                    Err "Passwords do not match"
+                        , value = .passwordConfirm
+                        , update = \new values -> { values | passwordConfirm = new }
+                        , error = always Nothing
+                        , attributes =
+                            { label = "Repeat Password"
+                            , placeholder = ""
+                            }
+                        }
+                )
+    in
+    Form.succeed tagger
+    |> Form.append usernameField
+    |> Form.append emailField
+    |> Form.append
+        (Form.succeed (\password _ -> password)
+            |> Form.append passwordField
+            |> Form.append passwordConfirmField
+        )
+
+
 
 
 
