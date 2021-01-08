@@ -9,37 +9,33 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.min.css" rel="stylesheet" type="text/css">
 
   <style>
-
+    h1, main {
+        text-align: center;
+    }
   </style>
 </head>
 <body>
-    <div class="nav-bar">
-        <div>Home</div>
-        <div>About</div>
-    </div>
+    <h1>ParlezVous Demo</h1>
 
     <main>
-        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus cursus vehicula est sed tempus. Suspendisse euismod est a justo fringilla, gravida lobortis dolor accumsan. Donec dignissim urna nibh, sit amet ultricies velit ultrices sed. Aliquam erat volutpat. Aenean dignissim vel erat dapibus venenatis. Praesent tempor leo id mi pulvinar, ac commodo dolor aliquam. Mauris varius eget ex quis blandit. Sed imperdiet quam ac eros iaculis, vel malesuada magna eleifend. Ut pulvinar dolor ut est mollis, vel eleifend neque venenatis. </p>
-        <p>Pellentesque malesuada ullamcorper porttitor. Praesent turpis turpis, pulvinar ac nunc nec, vehicula mollis neque. Nulla dictum ex et lacus gravida, et rutrum nibh accumsan. Cras mi ex, consequat id augue et, luctus interdum nisl. Ut tincidunt elementum est. Fusce quis ligula at dui blandit finibus. Praesent sollicitudin orci at arcu aliquet placerat. Vestibulum vitae rutrum metus. Nullam ut dapibus neque, nec rhoncus dolor. Proin tincidunt finibus mi, sit amet lacinia odio molestie eu. Proin ac tempor dui. Sed tincidunt velit eu sem sodales, vel imperdiet massa condimentum. Fusce fermentum dapibus tristique. </p>
-        <p>Phasellus sed fringilla tortor. Morbi sed libero mi. Curabitur ex leo, vehicula in malesuada eget, ultrices nec sem. Nulla in magna congue, ornare neque sed, pretium turpis. Sed posuere, arcu commodo laoreet lacinia, purus lectus accumsan purus, nec bibendum justo magna ut urna. Vestibulum in sagittis mauris. Praesent condimentum mauris orci, vel consectetur leo sodales sodales. </p>
-        <p>Donec placerat porta lorem, et convallis purus aliquam vel. Curabitur fermentum arcu tortor, vitae tempor mi dictum eget. Suspendisse potenti. Sed ac elit malesuada, malesuada nisl auctor, volutpat erat. Morbi condimentum lectus sit amet augue sollicitudin, ac finibus enim varius. Sed justo sapien, fermentum id diam porta, lacinia porttitor sem. Phasellus malesuada urna sit amet magna fermentum eleifend quis fringilla nisl. Pellentesque lobortis ex sit amet ultrices aliquam. Donec auctor tempor elit, id vestibulum nibh cursus id. Aenean placerat leo a lectus lacinia pretium. Donec sit amet massa pellentesque, faucibus massa ut, suscipit risus. Donec ultrices, tortor vel placerat feugiat, ante lectus feugiat velit, in semper lorem risus nec quam. Interdum et malesuada fames ac ante ipsum primis in faucibus. Fusce elit nisi, tincidunt eget metus nec, maximus mollis felis. Proin vitae tellus et lacus volutpat porta eget et libero. </p>
-        <p>Etiam varius consectetur purus vitae dapibus. Maecenas ut sem a sem imperdiet laoreet. Nunc sagittis nulla vel volutpat pharetra. Duis ac feugiat quam. Quisque congue ipsum non mauris sagittis, quis bibendum turpis interdum. Maecenas odio justo, ultrices vel vulputate non, maximus et dolor. In leo magna, tincidunt in consequat id, molestie in sapien. Nunc sed faucibus sem, congue malesuada nunc. Nam lacinia orci quis arcu vehicula, eget rutrum lacus blandit. Sed lacus sapien, faucibus vel eros sit amet, dictum tempus ipsum. Nunc egestas mi neque, at volutpat velit aliquet vitae. </p>
+        <p>This is a demo of the <a target="_blank" href="https://parlezvous.io/">ParlezVous</a> embed widget.</p>
     </main>
 
     <script id="pv-root">
         const hostUrl = document.location.href
         const pvIframe = document.createElement('iframe')
-        const embedAppUrl = 'http://dev.parlezvous.io:3000'
+        // const embedAppUrl = 'http://dev.parlezvous.io:3000'
+        const embedAppUrlProd = 'https://parlezvous.nyc3.cdn.digitaloceanspaces.com/embed/iframe-app.html'
 
         pvIframe.setAttribute('id', 'pv-iframe')
         pvIframe.setAttribute('scrolling', 'no')
         pvIframe.setAttribute('style', 'width: 100% !important; border: none !important; overflow: hidden;')
-        pvIframe.setAttribute('src', `${embedAppUrl}?host_url=${hostUrl}`)
+        pvIframe.setAttribute('src', `${embedAppUrlProd}?host_url=${hostUrl}`)
 
         document.getElementById('pv-root').insertAdjacentElement('afterend', pvIframe)
 
         window.addEventListener('message', (e) => {
-            if (event.origin !== embedAppUrl) return;
+            if (e.origin !== embedAppUrlProd) return;
             pvIframe.style.height = e.data.height + 'px'
         })
     </script>

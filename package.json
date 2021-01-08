@@ -5,12 +5,13 @@
   "main": "index.js",
   "scripts": {
     "start": "API_ENDPOINT=http://localhost:8080 webpack serve --port 3000",
-    "build": "rm -rf ./dist && NODE_ENV=production API_ENDPOINT=https://api-server-sl9i9.ondigitalocean.app webpack",
+    "build": "rm -rf ./dist && NODE_ENV=production API_ENDPOINT=https://api-server-sl9i9.ondigitalocean.app webpack && node ./merge-dist-output.js",
     "test": "elm-test"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "cheerio": "^1.0.0-rc.5",
     "elm-webpack-loader": "^7.0.1",
     "html-webpack-plugin": "^4.5.0",
     "webpack": "^4.44.2",
