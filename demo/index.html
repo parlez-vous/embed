@@ -24,18 +24,22 @@
     <script id="pv-root">
         const hostUrl = document.location.href
         const pvIframe = document.createElement('iframe')
-        // const embedAppUrl = 'http://dev.parlezvous.io:3000'
-        const embedAppUrlProd = 'https://parlezvous.nyc3.cdn.digitaloceanspaces.com/embed/iframe-app.html'
+
+        const devOrigin = 'http://dev.parlezvous.io:3000'
+        const prodOrigin = 'https://parlezvous.nyc3.cdn.digitaloceanspaces.com'
+
+        const embedAppOrigin = prodOrigin
+        const iframeSrc = prodOrigin + '/embed/iframe-app.html'
 
         pvIframe.setAttribute('id', 'pv-iframe')
         pvIframe.setAttribute('scrolling', 'no')
         pvIframe.setAttribute('style', 'width: 100% !important; border: none !important; overflow: hidden;')
-        pvIframe.setAttribute('src', `${embedAppUrlProd}?host_url=${hostUrl}`)
+        pvIframe.setAttribute('src', `${iframeSrc}?host_url=${hostUrl}`)
 
         document.getElementById('pv-root').insertAdjacentElement('afterend', pvIframe)
 
         window.addEventListener('message', (e) => {
-            if (e.origin !== embedAppUrlProd) return;
+            if (e.origin !== prodOrigin) return;
             pvIframe.style.height = e.data.height + 'px'
         })
     </script>
