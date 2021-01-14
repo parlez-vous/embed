@@ -117,6 +117,12 @@ replyTextarea comment effects =
 
 
 {-| 
+    @arg depth
+        current depth of tree: From 0 -> n
+
+    @arg effects
+        The various kinds of effects that can be emitted / produced
+
     @arg formatter
         a function that formats Posix timestamps into human readable "distance" strings.
         i.e. "5 minutes ago"
@@ -126,11 +132,17 @@ replyTextarea comment effects =
         tree of comments. Can be Simple, i.e. they are immediately loaded, or Async, meaning we have to do
         a subsequent round-trip to the back end to get this information.
 
-    @arg commentTree
+    @arg commentMap
         a flattened hashmap that represents a recursive tree of comments (i.e. just like Reddit)
 -}
-viewComments : Effects msg -> TimeFormatter -> CommentPointers msg -> CommentMap -> StyledHtml msg
-viewComments effects formatter pointers commentMap =
+viewComments
+    : Int
+   -> Effects msg
+   -> TimeFormatter
+   -> CommentPointers msg
+   -> CommentMap
+   -> StyledHtml msg
+viewComments depth effects formatter pointers commentMap =
     let
         viewComments_ : Set Cuid -> StyledHtml msg
         viewComments_ pointerSet =
@@ -140,9 +152,19 @@ viewComments effects formatter pointers commentMap =
                 let
                     comments =
                         Comment.getCommentsFromPointers commentMap pointerSet
+
+                    optionalBorderLeft =
+                        if depth > 0 then
+                            [ borderLeft3 (px 1) dotted (hex "#ededed")
+                            , hover
+                                [ borderLeft3 (px 1) dotted (hex "#4ba9ff")
+                                ]
+                            ]
+                        else
+                            [ border zero ]
                 in
                 S.div
-                    [ css [ marginLeft (px 15) ]
+                    [ css <| [ paddingLeft (px 10) ] ++ optionalBorderLeft
                     ]
                     (List.map viewSingleComment comments)
 
@@ -152,10 +174,6 @@ viewComments effects formatter pointers commentMap =
         viewSingleComment : Comment -> StyledHtml msg
         viewSingleComment comment =
             let
-                styles =
-                    [ marginBottom (px 15)
-                    ]
-
                 authorName =
                     S.span [ css [ marginRight (px 10) ] ]
                         [ strongText <| Utils.getAuthorName comment
@@ -178,16 +196,61 @@ viewComments effects formatter pointers commentMap =
                     in
                     commentActionButton "reply" update
 
+
+                viewCommentFoldingIcon =
+                    let
+                        -- ensure icon is rendered as monospaced
+                        fontFamilyList =
+                            [ "Consolas"
+                            , "Monaco"
+                            , "monospace"
+                            ]
+
+                        icon =
+                            if comment.isFolded then
+                                "[+]"
+                            else
+                                "[-]"
+
+                        commentFoldingStyles =
+                            [ marginRight (px 10)
+                            , fontSize (pct 63)
+                            , position relative
+                            , top (px 2)
+                            , fontFamilies fontFamilyList
+                            ]
+
+                        updatedComment =
+                            { comment | isFolded = not comment.isFolded
+                            }
+                    in
+                    S.div [ css commentFoldingStyles ]
+                        [ S.span
+                            [ css [ hover [ cursor pointer ] ]
+                            , onClick (effects.updateComment updatedComment)
+                            ]
+                            [ S.text icon ]
+                        ]
+
+                maybeViewComment =
+                    if comment.isFolded then
+                        [ S.div [ css [ marginBottom (px 10) ] ] []
+                        ]
+                    else
+                        [ S.div [ css [ marginBottom (px 15) ] ]
+                            [ S.div [] [ primaryText comment.body ]
+                            , replyButton
+                            , replyTextarea comment effects
+                            ]
+                        , viewComments (depth + 1) effects formatter replyInfo commentMap
+                        ]
             in
-            S.div []
-                [ authorName
-                , secondaryText <| formatter comment.createdAt
-                , S.div [ css styles ]
-                    [ S.div [] [ primaryText comment.body ]
-                    , replyButton
-                    , replyTextarea comment effects
-                    ]
-                , viewComments effects formatter replyInfo commentMap
+            S.div [ css [ displayFlex ] ]
+                [ viewCommentFoldingIcon
+                , S.div [ css [ width (pct 100) ] ]
+                    ([ authorName
+                    , secondaryText <| formatter comment.createdAt
+                    ] ++ maybeViewComment)
                 ]
     in
     case pointers of
@@ -229,7 +292,11 @@ viewComments effects formatter pointers commentMap =
 
 viewCommentsSection : Effects msg -> TimeFormatter -> CommentTree -> StyledHtml msg
 viewCommentsSection effects formatter { topLevelComments, comments }=
+    let
+        rootDepth = 0
+    in
     S.div
-        [ css [ marginLeft (px -15) ] ]
-        [ viewComments effects formatter (Simple topLevelComments) comments ]
+        [ css [ marginLeft (px -10) ] ]
+        [ viewComments rootDepth effects formatter (Simple topLevelComments) comments
+        ]
 

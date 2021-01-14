@@ -82,12 +82,15 @@ intoComment id maybeParentCommentId anonAuthorName body replyIds isLeaf votes cr
 
                 Nothing ->
                     Anonymous_ anonAuthorName
+
+        isFolded = False
     in
     Comment
         id
         isLeaf
         maybeParentCommentId
         author
+        isFolded
         anonAuthorName
         body
         replyIdSet

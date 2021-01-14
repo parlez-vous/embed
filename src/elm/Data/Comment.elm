@@ -24,9 +24,10 @@ type alias Comment =
     , isLeaf : Bool
     , parentCommentId : Maybe Cuid
     , author : Author
+    , isFolded : Bool
 
     -- used when posting a comment as anonymous user
-    , fallbackAnonUsername : String
+    , fallbackAnonUsername : String -- TODO: remove this. Not necessary.
     , body : String
 
     -- CONTEXT REGARDING replyIds + remoteReplyBuffer:
