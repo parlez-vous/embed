@@ -89,7 +89,7 @@ init flags =
                         -- we want to retrieve the user from the server
                         getUserCmd =
                             Task.attempt
-                                (ReceivedSessionResponse flags.anonymousUsername)
+                                (ReceivedSessionResponse sessionToken flags.anonymousUsername)
                                 (apiClient.getUserFromSessionToken sessionToken)
 
                         getInteractionsCmd =
@@ -270,7 +270,7 @@ viewApp model =
                         Anonymous maybeAnonymousUsername ->
                             viewAuthenticationForm model.modal maybeAnonymousUsername
 
-                        Authenticated _ _ ->
+                        Authenticated _ _ _ ->
                             Styled.text ""
 
                 _ ->

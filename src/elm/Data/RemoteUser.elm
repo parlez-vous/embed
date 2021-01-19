@@ -6,7 +6,7 @@ module Data.RemoteUser exposing
 
 
 import Api exposing (ApiRequestOutcome)
-import Data exposing (Interactions, User(..), UserInfo)
+import Data exposing (Interactions, User(..), UserInfoWithToken)
 
 {-| Represents a combined async data structure
     we do 2 parallel requests and combine them once they're both complete
@@ -17,7 +17,7 @@ import Data exposing (Interactions, User(..), UserInfo)
 -}
 type RemoteUser
     = AwaitingUserInfoAndInteractions
-    | ReceivedUserInfo UserInfo 
+    | ReceivedUserInfo UserInfoWithToken
     | ReceivedInteractions Interactions
     -- recall that User is a union type
     -- and authenticated user contains UserInfo and Interactions
@@ -25,7 +25,7 @@ type RemoteUser
 
 
 
-setUserInfo : Maybe String -> ApiRequestOutcome UserInfo -> RemoteUser -> RemoteUser
+setUserInfo : Maybe String -> ApiRequestOutcome UserInfoWithToken -> RemoteUser -> RemoteUser
 setUserInfo fallbackAnonUsername outcome user =
     let
         fallbackOnError = UserLoaded (Anonymous fallbackAnonUsername)
@@ -33,7 +33,7 @@ setUserInfo fallbackAnonUsername outcome user =
     case user of
         ReceivedInteractions interactions ->
             outcome
-            |> Result.map (\info -> UserLoaded (Authenticated info interactions))
+            |> Result.map (\(userInfo, apiToken)-> UserLoaded (Authenticated userInfo interactions apiToken))
             |> Result.withDefault fallbackOnError
 
         AwaitingUserInfoAndInteractions ->
@@ -42,7 +42,7 @@ setUserInfo fallbackAnonUsername outcome user =
             |> Result.withDefault fallbackOnError
 
         UserLoaded loadedUser -> UserLoaded loadedUser
-        ReceivedUserInfo userInfo -> ReceivedUserInfo userInfo
+        ReceivedUserInfo userInfoWithToken -> ReceivedUserInfo userInfoWithToken
 
 
 setInteractions : Maybe String -> ApiRequestOutcome Interactions -> RemoteUser -> RemoteUser
@@ -53,9 +53,9 @@ setInteractions fallbackAnonUsername outcome user =
         _ = Debug.log "setInteractions called: " outcome
     in
     case user of
-        ReceivedUserInfo userInfo -> 
+        ReceivedUserInfo (userInfo, apiToken) -> 
             outcome
-            |> Result.map (UserLoaded << Authenticated userInfo)
+            |> Result.map (\interactions -> UserLoaded <| Authenticated userInfo interactions apiToken)
             |> Result.withDefault fallbackOnError
 
         AwaitingUserInfoAndInteractions ->

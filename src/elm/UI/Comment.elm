@@ -381,7 +381,7 @@ viewCommentsSection effects formatter { topLevelComments, comments } user =
 
         maybeInteractions =
             case user of
-                Authenticated _ interactions -> Just interactions
+                Authenticated _ interactions _ -> Just interactions
                 Anonymous _ -> Nothing
     in
     S.div

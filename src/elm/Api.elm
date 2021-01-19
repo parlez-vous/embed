@@ -6,7 +6,7 @@ module Api exposing
     )
 
 import Api.Output as Output
-import Data exposing (ApiToken(..), Interactions, User(..), UserInfo, UserInfoWithToken)
+import Data exposing (ApiToken(..), Interactions, User(..), UserInfo, UserInfoWithToken, VoteAction(..))
 import Data.Comment exposing (Comment, CommentTree)
 import Data.Cuid exposing (Cuid)
 import Http exposing (Body, Header)
@@ -34,6 +34,7 @@ type alias ApiClient =
     , userSignUp : SignUp
     , getUserFromSessionToken : GetUserFromSessionToken
     , getUserInteractions : GetUserInteractions
+    , submitVoteForComment : SubmitVoteForComment
     }
 
 
@@ -53,6 +54,7 @@ getApiClient baseUrl siteUrl =
     , userSignUp = userSignUp api
     , getUserFromSessionToken = getUserFromSessionToken api
     , getUserInteractions = getUserInteractions api
+    , submitVoteForComment = submitVoteForComment api
     }
 
 
@@ -110,11 +112,11 @@ getTask url headers resolver =
 
 
 
-postTask : String -> Body -> Http.Resolver Http.Error a -> Task Http.Error a
-postTask url body resolver =
+postTask : String -> List Header -> Body -> Http.Resolver Http.Error a -> Task Http.Error a
+postTask url headers body resolver =
     Http.task
         { method = "POST"
-        , headers = []
+        , headers = headers
         , url = url
         , body = body
         , resolver = resolver
@@ -190,6 +192,7 @@ reportError api { ref, message } =
     in
     postTask
         (makeRequestUrl api endpointPath noParams)
+        noHeaders
         (Http.jsonBody body)
         (requestResolver <| D.succeed ())
 
@@ -258,7 +261,7 @@ addComment api commentContents postId parentCommentId user =
 
         ( authorId, anonAuthorName ) =
             case user of
-                Authenticated user_ _ ->
+                Authenticated user_ _ _ ->
                     ( Just user_.id, Nothing )
 
                 Anonymous maybeAnonymousUsername ->
@@ -274,6 +277,7 @@ addComment api commentContents postId parentCommentId user =
     in
     postTask
         (makeRequestUrl api endpointPath noParams)
+        noHeaders
         body
         (requestResolver decoder)
 
@@ -296,6 +300,7 @@ userLogIn api data =
     in
     postTask
         (makeRequestUrl api endpointPath noParams)
+        noHeaders
         (Http.jsonBody signinJson)
         (requestResolver Input.userAndTokenDecoder)
 
@@ -318,6 +323,7 @@ userSignUp api data =
     in
     postTask
         (makeRequestUrl api endpointPath noParams)
+        noHeaders
         (Http.jsonBody signUpJson)
         (requestResolver Input.userAndTokenDecoder)
 
@@ -366,5 +372,36 @@ getUserInteractions api apiToken =
     getTask
         (makeRequestUrl api endpointPath queryParams)
         headers
+        (requestResolver decoder)
+
+
+type alias SubmitVoteForComment =
+    ApiToken -> Cuid -> VoteAction -> Task Http.Error ()
+
+submitVoteForComment : Api -> SubmitVoteForComment
+submitVoteForComment api apiToken commentId voteType =
+    let
+        endpointPath = "embed/comments/" ++ commentId ++ "/vote"
+
+        headers = [ authHeader apiToken ]
+
+        voteInt = 
+            case voteType of
+                SetUp -> 1
+                SetDown -> -1
+                SetNeutral -> 0
+
+        body =
+            E.object
+                [ ( "vote", E.int voteInt )
+                ]
+
+        decoder =
+            D.succeed ()
+    in
+    postTask
+        (makeRequestUrl api endpointPath noParams)
+        headers
+        (Http.jsonBody body) 
         (requestResolver decoder)
 

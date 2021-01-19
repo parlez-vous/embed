@@ -11,7 +11,7 @@ module Model exposing
 import Ant.Form.View as FV
 import Api exposing (ApiClient, ApiRequestOutcome)
 import Browser.Navigation as Nav
-import Data exposing (User(..), UserInfo, UserInfoWithToken, VoteType)
+import Data exposing (ApiToken, User(..), UserInfo, UserInfoWithToken, VoteType(..), VoteAction(..))
 import Data.Comment as Comment exposing (Comment, CommentTree, updateComment)
 import Data.Cuid exposing (Cuid)
 import Data.RemoteUser as RemoteUser exposing (RemoteUser)
@@ -91,8 +91,9 @@ type Msg
     | RepliesForCommentFetched Cuid (ApiRequestOutcome CommentTree)
     | ErrorReportSubmitted (ApiRequestOutcome ())
     | UserLoggedIn (Maybe String) (ApiRequestOutcome UserInfoWithToken)
-    | ReceivedSessionResponse (Maybe String) (ApiRequestOutcome UserInfo)
+    | ReceivedSessionResponse ApiToken (Maybe String) (ApiRequestOutcome UserInfo)
     | ReceivedInteractionsResponse (Maybe String) (ApiRequestOutcome Interactions)
+    | ReceivedVoteResponse (ApiRequestOutcome ())
 
 
 -- handler functions exported for testing
@@ -166,8 +167,78 @@ updateReadyModel msg model =
             VoteButtonClicked commentId voteType ->
                 let
                     _ = Debug.log "VoteButtonClicked: " (commentId, voteType) 
+
+                    outgoingVote interactions clickedVote =
+                        let
+                            setUp = ( SetUp, 1 )
+                            setDown = ( SetDown, -1 )
+                            setNeutral = ( SetNeutral, 0 )
+
+                            defaultVoteAction =
+                                case voteType of
+                                    Up -> setUp
+                                    Down -> setDown
+
+                        in
+                        Dict.get commentId interactions.commentVotes
+                        |> Maybe.map
+                            (\{ value } ->
+                                if value > 0 then
+                                    case clickedVote of
+                                        Up -> setNeutral -- cancel upvote
+                                        Down -> setDown
+                                else if value < 0 then
+                                    case clickedVote of
+                                        Up -> setUp
+                                        Down -> setNeutral -- cancel downvote
+                                else
+                                    defaultVoteAction
+                            )
+                        |> Maybe.withDefault defaultVoteAction
+
+
                 in
-                Utils.simpleUpdate model 
+                case model.user of
+                    RemoteUser.UserLoaded user ->
+                        case user of
+                            Anonymous _ ->
+                                -- TODO: trigger modal popup here
+                                Utils.simpleUpdate model
+                                
+                            Authenticated userInfo interactions apiToken ->
+                                let
+                                    ( voteAction, voteValue ) =
+                                        outgoingVote interactions voteType
+
+                                    newInteractions =
+                                        let
+                                            newCommentVotes =
+                                                Dict.insert
+                                                    commentId
+                                                    { commentId = commentId, value = voteValue }
+                                                    interactions.commentVotes
+                                        in
+                                        { interactions | commentVotes = newCommentVotes
+                                        }
+
+
+                                    task =
+                                        model.apiClient.submitVoteForComment
+                                            apiToken
+                                            commentId
+                                            voteAction
+                                in
+                                ( { model | user =
+                                        RemoteUser.UserLoaded 
+                                            (Authenticated userInfo newInteractions apiToken)
+                                  }
+                                , Task.attempt
+                                    ReceivedVoteResponse
+                                    task
+                                )
+
+                    _ ->
+                        Utils.simpleUpdate model
 
             ModalStateChanged newState ->
                 Utils.simpleUpdate { model | modal = newState }
@@ -246,14 +317,14 @@ updateReadyModel msg model =
 
             UserLoggedIn fallbackAnonUsername httpRequestResult ->
                 let
-                    withoutToken =
-                        Result.map (\(userInfo, _) -> userInfo) httpRequestResult
-
                     newModel =
                         { model
                             | modal = Hidden
                             , user =
-                                Debug.log "UserLoggedIn: " (RemoteUser.setUserInfo fallbackAnonUsername withoutToken model.user)
+                                RemoteUser.setUserInfo
+                                    fallbackAnonUsername
+                                    httpRequestResult
+                                    model.user
                         }
                 in
                 case httpRequestResult of
@@ -293,8 +364,17 @@ updateReadyModel msg model =
                                 SimpleWebData.Success initialCommentResponse
                             }
 
-            ReceivedSessionResponse cachedMaybeAnonUsername httpRequestResult ->
+            ReceivedVoteResponse httpRequestResult ->
                 let
+                    _ = Debug.log "ReceivedVoteResponse: " httpRequestResult
+                in
+                Utils.simpleUpdate model
+
+            ReceivedSessionResponse apiToken cachedMaybeAnonUsername httpRequestResult ->
+                let
+                    resultWithToken =
+                        Result.map (\user -> (user, apiToken)) httpRequestResult
+
                     cmd = 
                         case httpRequestResult of
                             Ok _ ->
@@ -319,7 +399,7 @@ updateReadyModel msg model =
                         Debug.log "ReceivedSessionResponse"
                         (RemoteUser.setUserInfo
                             cachedMaybeAnonUsername
-                            httpRequestResult
+                            resultWithToken
                             model.user)
                   }
                 , cmd
@@ -494,7 +574,7 @@ updateReadyModel msg model =
                                             ]
                                         )
                                     
-                            Authenticated _ _ ->
+                            Authenticated _ _ _ ->
                                 ( newModel, reporterMsg )
 
             CommentChanged comment ->

@@ -168,7 +168,7 @@ viewAuthenticationInfo remoteUser tagger =
             case remoteUser of
                 RemoteUser.UserLoaded user ->
                     case user of
-                        Authenticated userInfo _ ->
+                        Authenticated userInfo _ _ ->
                             [ text ("Logged in as " ++ userInfo.username)
                             ]
 

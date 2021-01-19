@@ -5,6 +5,7 @@ module Data exposing
     , UserInfo
     , UserInfoWithToken
     , VoteType(..)
+    , VoteAction(..)
     , Interactions
     , CommentVote
     )
@@ -17,7 +18,7 @@ type ApiToken = ApiToken String
 
 
 type User
-    = Authenticated UserInfo Interactions
+    = Authenticated UserInfo Interactions ApiToken
     -- We may have access to a server-generated
     -- random username if the user has already commented
     | Anonymous (Maybe String)
@@ -37,7 +38,10 @@ type alias UserInfo =
     }
 
 
-type VoteType = Up | Down 
+type VoteType = Up | Down
+
+type VoteAction = SetUp | SetDown | SetNeutral
+
 
 type alias CommentVote =
     { value : Int -- either '-1' '0' or '1'
