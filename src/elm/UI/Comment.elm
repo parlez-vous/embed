@@ -288,27 +288,29 @@ viewComments depth effects formatter pointers commentMap maybeInteractions =
                                 [ S.text commentFoldingText ]
 
 
-                        renderVoteIcon_ =
-                            renderVoteIcon effects comment maybeInteractions
+                        votingIcons =
+                            if comment.isFolded then
+                                S.text ""
+                            else
+                                let
+                                    renderVoteIcon_ =
+                                        renderVoteIcon effects comment maybeInteractions
+                                in
+                                S.div
+                                    [ css
+                                        [ marginTop (px 13)
+                                        , position relative
+                                        , left (px 2)
+                                        ]
+                                    ]
+                                    [ renderVoteIcon_ Up upOutlined
+                                    , renderVoteIcon_ Down downOutlined
+                                    ]
 
-                        upvoteIcon = 
-                            renderVoteIcon_ Up upOutlined
-
-                        downvoteIcon =
-                            renderVoteIcon_ Down downOutlined
                     in
                     S.div [ css sidebarStyles ]
                         [ commentFoldingIcon
-                        , S.div
-                            [ css
-                                [ marginTop (px 13)
-                                , position relative
-                                , left (px 2)
-                                ]
-                            ]
-                            [ upvoteIcon
-                            , downvoteIcon
-                            ]
+                        , votingIcons
                         ]
 
                 maybeViewComment =
@@ -317,7 +319,7 @@ viewComments depth effects formatter pointers commentMap maybeInteractions =
                         ]
                     else
                         [ S.div [ css [ marginBottom (px 15) ] ]
-                            [ S.div [] [ primaryText comment.body ]
+                            [ S.div [ css [ overflowWrap breakWord ] ] [ primaryText comment.body ]
                             , replyButton
                             , replyTextarea comment effects
                             ]
