@@ -5,9 +5,12 @@ module UI.Comment exposing (viewCommentsSection)
 
 import Ant.Button as Btn exposing (button, Button)
 import Ant.Typography.Text as Text exposing (Text, text)
+import Ant.Icons as Icon exposing (Icon, downOutlined, upOutlined)
 import Css exposing (..)
+import Data exposing (User(..), Interactions, VoteType(..))
 import Data.Comment as Comment exposing (Comment, CommentTree, CommentMap)
 import Data.Cuid exposing (Cuid)
+import Dict
 import Html.Styled as S exposing (fromUnstyled)
 import Html.Styled.Attributes exposing (css)
 import Html.Styled.Events exposing (onClick)
@@ -18,6 +21,7 @@ import UI.TextArea as TextArea
 import Utils
 
 
+
 type alias StyledHtml a = S.Html a
 type alias TimeFormatter = Time.Posix -> String
 
@@ -25,7 +29,9 @@ type alias Effects msg =
     { loadRepliesForComment : Cuid -> msg
     , updateComment : Comment -> msg
     , submitReply : Cuid -> String -> Maybe msg
+    , submitCommentVote : Cuid -> VoteType -> msg
     }
+
 
 type CommentPointers msg
     = Simple (Set Cuid)
@@ -71,6 +77,49 @@ link : String -> Button msg
 link val =
     button val
     |> Btn.withType Btn.Link
+
+
+-- Color of vote icons depends on the interaction that the user
+-- has had on a particular comment
+-- Either they have a (+1) upvote or a (-1) downvote
+renderVoteIcon : Effects msg -> Comment -> Maybe Interactions -> VoteType -> Icon msg -> StyledHtml msg
+renderVoteIcon { submitCommentVote } comment maybeInteractions vote icon =
+    let
+        defaultColor = ( "color", "#737373" )
+        chosenVoteColor = ( "color", "#4ba9ff" )
+        
+        voteIconColor =
+            case maybeInteractions of
+                Nothing -> defaultColor
+
+                Just interactions ->
+                    -- this represents the logged-in users
+                    -- vote for this comment
+                    interactions.commentVotes
+                    |> Dict.get comment.id 
+                    |> Maybe.map
+                        (\{ value } ->
+                            if value == 1 && vote == Up then
+                                chosenVoteColor 
+                            else if value == -1 && vote == Down then
+                                chosenVoteColor
+                            else
+                                defaultColor
+                        )
+                    |> Maybe.withDefault defaultColor
+
+        iconHtml =
+            icon
+                |> Icon.withStyles [ voteIconColor ]
+                |> Icon.toHtml
+                |> fromUnstyled
+    in
+    S.span
+        [ css [ cursor pointer ]
+        , onClick (submitCommentVote comment.id vote)
+        ]
+        [ iconHtml ]
+
 
 
 commentActionButton : String -> msg -> StyledHtml msg
@@ -141,8 +190,9 @@ viewComments
    -> TimeFormatter
    -> CommentPointers msg
    -> CommentMap
+   -> Maybe Interactions
    -> StyledHtml msg
-viewComments depth effects formatter pointers commentMap =
+viewComments depth effects formatter pointers commentMap maybeInteractions =
     let
         viewComments_ : Set Cuid -> StyledHtml msg
         viewComments_ pointerSet =
@@ -164,7 +214,7 @@ viewComments depth effects formatter pointers commentMap =
                             [ border zero ]
                 in
                 S.div
-                    [ css <| [ paddingLeft (px 10) ] ++ optionalBorderLeft
+                    [ css <| paddingLeft (px 10) :: optionalBorderLeft
                     ]
                     (List.map viewSingleComment comments)
 
@@ -197,7 +247,9 @@ viewComments depth effects formatter pointers commentMap =
                     commentActionButton "reply" update
 
 
-                viewCommentFoldingIcon =
+                -- Includes the folding icon
+                -- and upvote / downvote icons
+                viewCommentSidebar =
                     let
                         -- ensure icon is rendered as monospaced
                         fontFamilyList =
@@ -206,30 +258,57 @@ viewComments depth effects formatter pointers commentMap =
                             , "monospace"
                             ]
 
-                        icon =
+                        commentFoldingText =
                             if comment.isFolded then
                                 "[+]"
                             else
                                 "[-]"
 
-                        commentFoldingStyles =
+                        sidebarStyles =
                             [ marginRight (px 10)
                             , fontSize (pct 63)
                             , position relative
                             , top (px 2)
-                            , fontFamilies fontFamilyList
+                            , displayFlex
+                            , flexDirection column
                             ]
 
                         updatedComment =
                             { comment | isFolded = not comment.isFolded
                             }
+
+                        commentFoldingIcon =
+                            S.span
+                                [ css
+                                    [ fontFamilies fontFamilyList
+                                    , hover [ cursor pointer ]
+                                    ]
+                                , onClick (effects.updateComment updatedComment)
+                                ]
+                                [ S.text commentFoldingText ]
+
+
+                        renderVoteIcon_ =
+                            renderVoteIcon effects comment maybeInteractions
+
+                        upvoteIcon = 
+                            renderVoteIcon_ Up upOutlined
+
+                        downvoteIcon =
+                            renderVoteIcon_ Down downOutlined
                     in
-                    S.div [ css commentFoldingStyles ]
-                        [ S.span
-                            [ css [ hover [ cursor pointer ] ]
-                            , onClick (effects.updateComment updatedComment)
+                    S.div [ css sidebarStyles ]
+                        [ commentFoldingIcon
+                        , S.div
+                            [ css
+                                [ marginTop (px 13)
+                                , position relative
+                                , left (px 2)
+                                ]
                             ]
-                            [ S.text icon ]
+                            [ upvoteIcon
+                            , downvoteIcon
+                            ]
                         ]
 
                 maybeViewComment =
@@ -242,11 +321,11 @@ viewComments depth effects formatter pointers commentMap =
                             , replyButton
                             , replyTextarea comment effects
                             ]
-                        , viewComments (depth + 1) effects formatter replyInfo commentMap
+                        , viewComments (depth + 1) effects formatter replyInfo commentMap maybeInteractions
                         ]
             in
             S.div [ css [ displayFlex ] ]
-                [ viewCommentFoldingIcon
+                [ viewCommentSidebar
                 , S.div [ css [ width (pct 100) ] ]
                     ([ authorName
                     , secondaryText <| formatter comment.createdAt
@@ -290,13 +369,29 @@ viewComments depth effects formatter pointers commentMap =
 
 
 
-viewCommentsSection : Effects msg -> TimeFormatter -> CommentTree -> StyledHtml msg
-viewCommentsSection effects formatter { topLevelComments, comments }=
+viewCommentsSection
+    : Effects msg
+    -> TimeFormatter
+    -> CommentTree
+    -> User
+    -> StyledHtml msg
+viewCommentsSection effects formatter { topLevelComments, comments } user =
     let
         rootDepth = 0
+
+        maybeInteractions =
+            case user of
+                Authenticated _ interactions -> Just interactions
+                Anonymous _ -> Nothing
     in
     S.div
         [ css [ marginLeft (px -10) ] ]
-        [ viewComments rootDepth effects formatter (Simple topLevelComments) comments
+        [ viewComments
+            rootDepth
+            effects
+            formatter
+            (Simple topLevelComments)
+            comments
+            maybeInteractions
         ]
 

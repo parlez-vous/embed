@@ -44,7 +44,6 @@ type alias Comment =
     , replyIds : Set Cuid
     , remoteReplyBuffer : WebData ()
 
-    , votes : Int
     , createdAt : Posix
     , textAreaState : ( TextAreaVisibility, String )
     }

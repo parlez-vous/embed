@@ -1,11 +1,12 @@
 module Api exposing
     ( ApiClient
+    , ApiRequestOutcome
     , getApiClient
     , reportError 
     )
 
 import Api.Output as Output
-import Data exposing (User(..), UserInfo, UserInfoWithToken)
+import Data exposing (ApiToken(..), Interactions, User(..), UserInfo, UserInfoWithToken)
 import Data.Comment exposing (Comment, CommentTree)
 import Data.Cuid exposing (Cuid)
 import Http exposing (Body, Header)
@@ -24,7 +25,6 @@ type alias Api =
     }
 
 
-
 type alias ApiClient =
     { getPostComments : GetPostComments
     , getRepliesForComment : GetRepliesForComment
@@ -33,8 +33,11 @@ type alias ApiClient =
     , userLogIn : LogIn
     , userSignUp : SignUp
     , getUserFromSessionToken : GetUserFromSessionToken
+    , getUserInteractions : GetUserInteractions
     }
 
+
+type alias ApiRequestOutcome a = Result Http.Error a
 
 
 getApiClient : Url -> Url -> ApiClient 
@@ -49,7 +52,9 @@ getApiClient baseUrl siteUrl =
     , userLogIn = userLogIn api
     , userSignUp = userSignUp api
     , getUserFromSessionToken = getUserFromSessionToken api
+    , getUserInteractions = getUserInteractions api
     }
+
 
 
 noParams : List QueryParameter
@@ -58,6 +63,11 @@ noParams = []
 
 noHeaders : List Header
 noHeaders = []
+
+
+authHeader : ApiToken -> Header
+authHeader (ApiToken token) =
+    Http.header "Authorization" token
 
 
 
@@ -147,7 +157,7 @@ type alias SiteInfo =
 
 
 getSiteInfo : Api -> SiteInfo
-getSiteInfo { siteUrl} =
+getSiteInfo { siteUrl } =
     { hostname = siteUrl.host
     , path = Utils.getPathFromUrl siteUrl
     }
@@ -186,7 +196,8 @@ reportError api { ref, message } =
 
 
 
-type alias GetPostComments = Task Http.Error CommentTree
+type alias GetPostComments =
+    Task Http.Error CommentTree
 
 getPostComments : Api -> GetPostComments 
 getPostComments api =
@@ -247,7 +258,7 @@ addComment api commentContents postId parentCommentId user =
 
         ( authorId, anonAuthorName ) =
             case user of
-                Authenticated user_ ->
+                Authenticated user_ _ ->
                     ( Just user_.id, Nothing )
 
                 Anonymous maybeAnonymousUsername ->
@@ -311,16 +322,16 @@ userSignUp api data =
         (requestResolver Input.userAndTokenDecoder)
 
 type alias GetUserFromSessionToken =
-    String -> Task Http.Error UserInfo
+    ApiToken -> Task Http.Error UserInfo
 
 
 getUserFromSessionToken : Api -> GetUserFromSessionToken
-getUserFromSessionToken api token =
+getUserFromSessionToken api apiToken =
     let
         endpointPath = "common/profile"
 
         headers =
-            [ Http.header "Authorization" token
+            [ authHeader apiToken
             ]
 
         decoder =
@@ -328,6 +339,32 @@ getUserFromSessionToken api token =
     in
     getTask
         (makeRequestUrl api endpointPath noParams)
-        (headers)
+        headers
+        (requestResolver decoder)
+
+
+
+type alias GetUserInteractions =
+    ApiToken -> Task Http.Error Interactions 
+
+getUserInteractions : Api -> GetUserInteractions
+getUserInteractions api apiToken =
+    let
+        endpointPath = "embed/interactions"
+
+        { path } = getSiteInfo api
+
+        headers =
+            [ authHeader apiToken ]
+
+        queryParams =
+            [ Url.Builder.string "postId" path ]
+
+        decoder =
+            Input.apiResponseDecoder Input.interactionsDecoder
+    in
+    getTask
+        (makeRequestUrl api endpointPath queryParams)
+        headers
         (requestResolver decoder)
 

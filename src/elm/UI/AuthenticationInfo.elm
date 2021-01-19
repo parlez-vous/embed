@@ -12,11 +12,12 @@ import Ant.Form.PasswordField exposing (PasswordFieldValue)
 import Ant.Theme as AntTheme
 import Css exposing (..)
 import Data exposing (User(..))
-import Data.SimpleWebData as SimpleWebData exposing (SimpleWebData)
+import Data.RemoteUser as RemoteUser exposing (RemoteUser)
 import Html.Styled as Html exposing (..)
 import Html.Styled.Attributes exposing (css)
 import Html.Styled.Events exposing (onClick)
 import Color.Convert exposing (colorToHexWithAlpha)
+
 
 type AuthenticationRequest = SignUp | LogIn
 
@@ -139,8 +140,8 @@ signUpForm tagger =
 
 
 
-viewAuthenticationInfo : SimpleWebData User -> (AuthenticationRequest -> msg) -> Html msg
-viewAuthenticationInfo webDataUser tagger =
+viewAuthenticationInfo : RemoteUser -> (AuthenticationRequest -> msg) -> Html msg
+viewAuthenticationInfo remoteUser tagger =
     let
         createAuthButton textValue action =
             button
@@ -164,10 +165,10 @@ viewAuthenticationInfo webDataUser tagger =
             |> color
 
         authenticationPrompt = 
-            case webDataUser of
-                SimpleWebData.Success user ->
+            case remoteUser of
+                RemoteUser.UserLoaded user ->
                     case user of
-                        Authenticated userInfo ->
+                        Authenticated userInfo _ ->
                             [ text ("Logged in as " ++ userInfo.username)
                             ]
 
@@ -178,12 +179,8 @@ viewAuthenticationInfo webDataUser tagger =
                             , text " for a better experience."
                             ]
 
-                SimpleWebData.Loading ->
+                _ ->
                     [ text "Loading ..."
-                    ]
-
-                SimpleWebData.Failure _ ->
-                    [ text "Something went wrong while verifying your session."
                     ]
 
         contents =

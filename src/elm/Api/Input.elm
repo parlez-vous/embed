@@ -2,6 +2,7 @@ module Api.Input exposing
     ( apiResponseDecoder
     , commentDecoder
     , commentTreeDecoder
+    , interactionsDecoder
     , userInfoDecoder
     , userAndTokenDecoder
     )
@@ -11,7 +12,7 @@ module Api.Input exposing
 Includes JSON decoders and types.
 -}
 
-import Data exposing (Author(..), UserInfo, UserInfoWithToken, token)
+import Data exposing (Author(..), CommentVote, Interactions, UserInfo, UserInfoWithToken, ApiToken(..))
 import Data.Comment exposing (Comment, CommentTree)
 import Json.Decode as D exposing (Decoder)
 import Time exposing (Posix)
@@ -56,11 +57,10 @@ intoComment
     -> String
     -> List String
     -> Bool
-    -> Int
     -> Posix
     -> Maybe UserInfo
     -> Comment
-intoComment id maybeParentCommentId anonAuthorName body replyIds isLeaf votes createdAt maybeUserInfo =
+intoComment id maybeParentCommentId anonAuthorName body replyIds isLeaf createdAt maybeUserInfo =
     let
         replyIdSet = Set.fromList replyIds
 
@@ -95,21 +95,19 @@ intoComment id maybeParentCommentId anonAuthorName body replyIds isLeaf votes cr
         body
         replyIdSet
         commentReplyBufferState
-        votes
         createdAt
         textAreaState
 
 
 commentDecoder : Decoder Comment
 commentDecoder = 
-    map9 intoComment
+    D.map8 intoComment
         (D.field "id" D.string)
         (D.field "parentCommentId" <| D.maybe D.string)
         (D.field "anonAuthorName" D.string)
         (D.field "body" D.string)
         (D.field "replyIds" <| D.list D.string)
         (D.field "isLeaf" D.bool)
-        (D.field "votes" D.int)
         (D.field "createdAt" timestampDecoder)
         (D.field "author" <| D.maybe userInfoDecoder)
 
@@ -148,7 +146,20 @@ userInfoDecoder =
 
 userAndTokenDecoder : Decoder UserInfoWithToken
 userAndTokenDecoder =
-    D.map2 (\userInfo tokenString -> (userInfo, token tokenString))
+    D.map2 (\userInfo tokenString -> (userInfo, ApiToken tokenString))
         (apiResponseDecoder userInfoDecoder)
         (D.field "sessionToken" D.string)
+
+
+interactionsDecoder : Decoder Interactions
+interactionsDecoder =
+    let
+        commentVotesDecoder =
+            D.map2 CommentVote
+                (D.field "value" D.int)
+                (D.field "commentId" D.string)
+    in
+    D.map Interactions
+        (D.field "commentVotes" <| D.dict commentVotesDecoder)
+
 

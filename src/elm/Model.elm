@@ -3,17 +3,18 @@ module Model exposing
     , Model(..)
     , Msg(..)
     , ModalState(..)
+    , intoReadyState
     , update
     )
 
 
 import Ant.Form.View as FV
-import Ant.Modal as Modal
-import Api exposing (ApiClient)
+import Api exposing (ApiClient, ApiRequestOutcome)
 import Browser.Navigation as Nav
-import Data exposing (User(..), UserInfo, UserInfoWithToken)
+import Data exposing (User(..), UserInfo, UserInfoWithToken, VoteType)
 import Data.Comment as Comment exposing (Comment, CommentTree, updateComment)
 import Data.Cuid exposing (Cuid)
+import Data.RemoteUser as RemoteUser exposing (RemoteUser)
 import Data.SimpleWebData as SimpleWebData exposing (SimpleWebData, mapSimpleWebData)
 import Dict
 import ErrorReporting exposing (ReporterClient)
@@ -24,6 +25,7 @@ import Task
 import Time
 import UI.AuthenticationInfo as AuthenticationInfo
 import Utils
+import Data exposing (Interactions)
 
 
 type alias LogInFormState = FV.Model AuthenticationInfo.LogInValues
@@ -37,12 +39,15 @@ type ModalState
 
 
 
+
+
+
 type alias AppData =
     { textAreaValue : String
     , commentTree : SimpleWebData CommentTree
     , currentTime : Time.Posix
     , apiClient : Api.ApiClient
-    , user : SimpleWebData User
+    , user : RemoteUser
 
     , modal : ModalState
     
@@ -53,22 +58,19 @@ type alias AppData =
 
 type Model
     = Ready AppData
-    | NotReady ApiClient (Maybe String) (Maybe String)
     | Failed String
 
 
 
-type alias ApiRequestOutcome a = Result Http.Error a
 
-
-type alias AwaitingSessionServerResponse = Bool
 
 type Msg
     = TextAreaValueChanged String
     | SubmitComment User Cuid (Maybe Cuid) String
     | LoadRepliesForCommentRequested Cuid
     | GoToParlezVous
-    | NewCurrentTime AwaitingSessionServerResponse Time.Posix
+    | NewCurrentTime Time.Posix
+    | VoteButtonClicked Cuid VoteType
 
     -- Authentication Stuff
     | AuthenticationButtonClicked AuthenticationInfo.AuthenticationRequest
@@ -90,6 +92,7 @@ type Msg
     | ErrorReportSubmitted (ApiRequestOutcome ())
     | UserLoggedIn (Maybe String) (ApiRequestOutcome UserInfoWithToken)
     | ReceivedSessionResponse (Maybe String) (ApiRequestOutcome UserInfo)
+    | ReceivedInteractionsResponse (Maybe String) (ApiRequestOutcome Interactions)
 
 
 -- handler functions exported for testing
@@ -103,25 +106,12 @@ This function should never be called again.
 -} 
 intoReadyState 
     : Maybe String
-   -> Maybe String
    -> ApiClient
-   -> AwaitingSessionServerResponse
+   -> RemoteUser
    -> Time.Posix
    -> ( Model, Cmd Msg )
-intoReadyState gitRef anonAuthorName apiClient awaitingSessionServerResponse time =
+intoReadyState gitRef apiClient user time =
     let
-        -- On the first invocation to NewCurrent time (on `init`)
-        -- we OPTIONALLY send an API request to the server to get a user
-        -- IFF there is a session token in the user's browser.
-        -- Otherwise, we don't even attempt to authenticate and default to
-        -- the anonymous username that may or may not be stored in localstorage
-        user =
-            if awaitingSessionServerResponse then
-                SimpleWebData.Loading
-            else
-                SimpleWebData.Success <| Anonymous anonAuthorName
-
-
         initialAppData =
             { textAreaValue = ""
             , modal = Hidden
@@ -146,12 +136,6 @@ update msg model =
         ( Failed reason, _ ) ->
             ( Failed reason, Cmd.none )
 
-        ( NotReady apiClient gitRef maybeAnonymousUsername, NewCurrentTime sessionInfo time) ->
-            intoReadyState gitRef maybeAnonymousUsername apiClient sessionInfo time 
-
-        ( NotReady apiClient gitRef maybeAnonymousUsername, _ ) ->
-            ( NotReady apiClient gitRef maybeAnonymousUsername, Cmd.none )
-
         ( Ready embedModel, _ ) ->
             updateReadyModel msg embedModel
 
@@ -162,7 +146,7 @@ setFormSubmittingState intoModalState formState appData =
     { appData
         | modal =
             intoModalState { formState | state = FV.Loading }
-        , user = SimpleWebData.Loading
+        , user = RemoteUser.AwaitingUserInfoAndInteractions
     }
 
 
@@ -170,7 +154,7 @@ updateReadyModel : Msg -> AppData -> ( Model, Cmd Msg )
 updateReadyModel msg model =
     Tuple.mapFirst Ready <|
         case msg of
-            NewCurrentTime sessionInfo time ->
+            NewCurrentTime time ->
                 Utils.simpleUpdate 
                     { model | currentTime = time }
 
@@ -178,6 +162,12 @@ updateReadyModel msg model =
                 ( model
                 , Nav.load "https://parlezvous.io?ref=embed"
                 )
+
+            VoteButtonClicked commentId voteType ->
+                let
+                    _ = Debug.log "VoteButtonClicked: " (commentId, voteType) 
+                in
+                Utils.simpleUpdate model 
 
             ModalStateChanged newState ->
                 Utils.simpleUpdate { model | modal = newState }
@@ -256,29 +246,36 @@ updateReadyModel msg model =
 
             UserLoggedIn fallbackAnonUsername httpRequestResult ->
                 let
-                    updateModel user =
+                    withoutToken =
+                        Result.map (\(userInfo, _) -> userInfo) httpRequestResult
+
+                    newModel =
                         { model
                             | modal = Hidden
-                            , user = SimpleWebData.Success user
-                            
+                            , user =
+                                Debug.log "UserLoggedIn: " (RemoteUser.setUserInfo fallbackAnonUsername withoutToken model.user)
                         }
                 in
                 case httpRequestResult of
                     -- TODO: report this
                     Err e ->
-                        Utils.simpleUpdate
-                            (updateModel <| Anonymous fallbackAnonUsername)
+                        Utils.simpleUpdate newModel
 
 
-                    Ok (user, userSessionToken) ->
+                    Ok (_, (Data.ApiToken token) as apiToken) ->
                         let
-                            cmd = Utils.writeToLocalStorage
-                                ( "sessionToken"
-                                , Data.tokenToString userSessionToken
-                                )
+                            getInteractionsCmd =
+                                Task.attempt
+                                    (ReceivedInteractionsResponse fallbackAnonUsername)
+                                    (model.apiClient.getUserInteractions apiToken)
                         in
-                        ( updateModel <| Authenticated user
-                        , cmd
+                        ( newModel
+                        , Cmd.batch
+                            [ Utils.writeToLocalStorage
+                                ( "sessionToken", token
+                                )
+                            , getInteractionsCmd 
+                            ]
                         )
 
 
@@ -287,7 +284,7 @@ updateReadyModel msg model =
                     Err e ->
                         Utils.simpleUpdate
                             { model | commentTree =
-                                SimpleWebData.Failure e
+                                SimpleWebData.Failure (Debug.log "> " e)
                             }
 
                     Ok initialCommentResponse ->
@@ -297,42 +294,47 @@ updateReadyModel msg model =
                             }
 
             ReceivedSessionResponse cachedMaybeAnonUsername httpRequestResult ->
-                case httpRequestResult of
-                    Err httpError ->
-                        let
-                            newModel =
-                                { model
-                                    | user = SimpleWebData.Success <| Anonymous cachedMaybeAnonUsername
-                                }
+                let
+                    cmd = 
+                        case httpRequestResult of
+                            Ok _ ->
+                                Cmd.none
 
-                            cmd =
-                                case httpError of 
-                                    Http.BadStatus statusInt ->
-                                        -- token expired
-                                        if statusInt == 401 then
+                            Err httpError ->
+                                case httpError of
+                                    Http.BadStatus statusValue ->
+                                        if statusValue == 401 then
                                             Utils.removeSessionToken ()
                                         else
-                                            -- TODO: report unexpected HTTP status codes here
+                                            -- TODO: report unexpected HTTP status code
                                             Cmd.none
 
-                                    _ ->
+                                    _ -> 
                                         -- TODO: handle other HTTP errors
                                         -- https://package.elm-lang.org/packages/elm/http/latest/Http#Error
                                         Cmd.none
+                in
+                ( { model
+                    | user = 
+                        Debug.log "ReceivedSessionResponse"
+                        (RemoteUser.setUserInfo
+                            cachedMaybeAnonUsername
+                            httpRequestResult
+                            model.user)
+                  }
+                , cmd
+                )
 
-                        in
-                        ( { model
-                            | user = SimpleWebData.Success <| Anonymous cachedMaybeAnonUsername
-                          }
-                        , cmd
-                        )
+            ReceivedInteractionsResponse fallbackAnonUsername interactionsHttpResult ->
+                Utils.simpleUpdate
+                    { model | user =
+                        Debug.log "ReceivedInteractionsResponse"
+                        (RemoteUser.setInteractions
+                            fallbackAnonUsername
+                            interactionsHttpResult
+                            model.user)
+                    }
 
-                    Ok user ->
-                        Utils.simpleUpdate
-                            { model
-                                | user = SimpleWebData.Success <| Authenticated user
-                            }
-                        
             RepliesForCommentFetched commentCuid httpRequestResult ->
                 case httpRequestResult of
                     Err e ->
@@ -480,7 +482,7 @@ updateReadyModel msg model =
                                             | user = 
                                                 Just newComment.fallbackAnonUsername
                                                 |> Anonymous
-                                                |> SimpleWebData.Success
+                                                |> RemoteUser.UserLoaded
                                           }
 
                                         , Cmd.batch
@@ -492,7 +494,7 @@ updateReadyModel msg model =
                                             ]
                                         )
                                     
-                            Authenticated userInfo ->
+                            Authenticated _ _ ->
                                 ( newModel, reporterMsg )
 
             CommentChanged comment ->

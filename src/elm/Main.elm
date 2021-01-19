@@ -7,14 +7,12 @@ import Api
 import Browser
 import Css exposing (..)
 import Data exposing (User(..))
-import Data.Comment exposing (updateComment)
 import Data.Cuid exposing (Cuid)
-import Data.SimpleWebData as SimpleWebData exposing (SimpleWebData, mapSimpleWebData)
-import ErrorReporting exposing (ReporterClient)
+import Data.RemoteUser as RemoteUser exposing (RemoteUser)
+import Data.SimpleWebData as SimpleWebData
 import Html exposing (Html)
-import Html.Styled as Styled exposing (toUnstyled, fromUnstyled)
-import Html.Styled.Attributes as Attr exposing (css)
-import Http
+import Html.Styled as Styled exposing (fromUnstyled)
+import Html.Styled.Attributes exposing (css)
 import Model exposing (AppData, Model(..), ModalState(..), Msg(..))
 import Task
 import Time
@@ -32,6 +30,7 @@ type alias Flags =
     , anonymousUsername : Maybe String
     , gitRef : Maybe String
     , sessionToken : Maybe String
+    , currentTime : Int
     }
 
 
@@ -56,17 +55,34 @@ init flags =
             let
                 apiClient = Api.getApiClient apiBaseUrl siteUrl
 
-                model = NotReady apiClient flags.gitRef flags.anonymousUsername
+                user =
+                    case maybeApiToken of
+                        Nothing ->
+                            RemoteUser.UserLoaded <| Anonymous flags.anonymousUsername
 
-                getCurrentTimeCmd awaitingSessionServerResponse =
-                    Task.perform ( NewCurrentTime awaitingSessionServerResponse ) Time.now
+                        Just _ ->
+                            RemoteUser.AwaitingUserInfoAndInteractions
+
+
+                ( model, baseCmd ) =
+                    Model.intoReadyState
+                        flags.gitRef 
+                        apiClient
+                        user
+                        (Time.millisToPosix flags.currentTime)
+
+                maybeApiToken =
+                    flags.sessionToken
+                        |> Maybe.map Data.ApiToken
             in
-            case flags.sessionToken of
+            case maybeApiToken of
+                -- if no token, then just get comments
                 Nothing ->
                     ( model 
-                    , getCurrentTimeCmd False
+                    , baseCmd
                     )
 
+                -- else, then get comments + user + interactions
                 Just sessionToken ->
                     let
                         -- If there's a session token,
@@ -75,11 +91,17 @@ init flags =
                             Task.attempt
                                 (ReceivedSessionResponse flags.anonymousUsername)
                                 (apiClient.getUserFromSessionToken sessionToken)
+
+                        getInteractionsCmd =
+                            Task.attempt
+                                (ReceivedInteractionsResponse flags.anonymousUsername)
+                                (apiClient.getUserInteractions sessionToken)
                     in
                     ( model
                     , Cmd.batch
-                        [ getCurrentTimeCmd True
+                        [ baseCmd
                         , getUserCmd
+                        , getInteractionsCmd
                         ]
                     )
 
@@ -103,16 +125,16 @@ subscriptions _ =
     let
         fiveMinutes = 1000 * 60 * 5
     in
-    Time.every fiveMinutes (NewCurrentTime False)
+    Time.every fiveMinutes NewCurrentTime
 
 
 
 -- VIEW
 
-intoSubmitCommentAction : Cuid -> Maybe Cuid -> String -> SimpleWebData User -> Maybe Msg
-intoSubmitCommentAction postId parentCommentId textAreaValue webDatauser =
-    case webDatauser of 
-        SimpleWebData.Success user ->
+intoSubmitCommentAction : Cuid -> Maybe Cuid -> String -> RemoteUser -> Maybe Msg
+intoSubmitCommentAction postId parentCommentId textAreaValue remoteUser =
+    case remoteUser of 
+        RemoteUser.UserLoaded user ->
             Just (SubmitComment user postId parentCommentId textAreaValue)
 
         _ ->
@@ -185,6 +207,7 @@ viewApp model =
                         actions =
                             { loadRepliesForComment = LoadRepliesForCommentRequested
                             , updateComment = CommentChanged
+                            , submitCommentVote = VoteButtonClicked
                             , submitReply = \commentId replyTextAreaValue ->
                                 intoSubmitCommentAction
                                     commentTree.postId
@@ -194,7 +217,12 @@ viewApp model =
                             }
 
                         commentsSection =
-                            viewCommentsSection actions timeStampFormatter commentTree
+                            case model.user of
+                                RemoteUser.UserLoaded user ->
+                                    viewCommentsSection actions timeStampFormatter commentTree user
+
+                                _ ->
+                                    Styled.text "Loading ..."
 
                         textAreaAction =
                             intoSubmitCommentAction
@@ -237,12 +265,12 @@ viewApp model =
 
         modal =
             case model.user of
-                SimpleWebData.Success user ->
+                RemoteUser.UserLoaded user ->
                     case user of 
                         Anonymous maybeAnonymousUsername ->
                             viewAuthenticationForm model.modal maybeAnonymousUsername
 
-                        Authenticated _ ->
+                        Authenticated _ _ ->
                             Styled.text ""
 
                 _ ->
@@ -263,9 +291,6 @@ view model =
             case model of
                 Failed reason ->
                     Styled.text reason
-
-                NotReady _ _ _ ->
-                    Styled.div [] []
 
                 Ready appData ->
                     viewApp appData

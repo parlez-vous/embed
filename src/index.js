@@ -44,6 +44,7 @@ var app = Elm.Main.init({
   node: document.getElementById("parlezvous-comments"),
   flags: {
     apiEndpoint,
+    currentTime: Date.now(),
     siteUrl: hostUrl.origin,
     anonymousUsername: localStorage.getItem('anonymousUsername'),
     gitRef,
