@@ -13,7 +13,7 @@
   "dependencies": {
     "cheerio": "^1.0.0-rc.5",
     "elm-webpack-loader": "^7.0.1",
-    "html-webpack-plugin": "^4.5.0",
+    "html-webpack-plugin": "^5.0.0",
     "webpack": "^4.44.2",
     "webpack-cli": "^4.2.0"
   },
