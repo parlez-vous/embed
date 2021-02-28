@@ -3,6 +3,7 @@ port module Utils exposing
     , humanReadableTimestamp
     , getPathFromUrl
     , removeSessionToken
+    , openInNewTab
     , writeToLocalStorage
     , simpleUpdate
     , timeDiff
@@ -37,6 +38,8 @@ getAuthorName { author } =
 -- ( String = key, String = value )
 port writeToLocalStorage : ( String, String ) -> Cmd msg
 port removeSessionToken : () -> Cmd msg
+
+port openInNewTab : String -> Cmd msg
 
 
 

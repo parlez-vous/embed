@@ -161,7 +161,7 @@ updateReadyModel msg model =
 
             GoToParlezVous ->
                 ( model
-                , Nav.load "https://parlezvous.io?ref=embed"
+                , Utils.openInNewTab "https://parlezvous.io?ref=embed"
                 )
 
             VoteButtonClicked commentId voteType ->
