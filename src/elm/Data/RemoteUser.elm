@@ -49,8 +49,6 @@ setInteractions : Maybe String -> ApiRequestOutcome Interactions -> RemoteUser -
 setInteractions fallbackAnonUsername outcome user =
     let
         fallbackOnError = UserLoaded (Anonymous fallbackAnonUsername)
-
-        _ = Debug.log "setInteractions called: " outcome
     in
     case user of
         ReceivedUserInfo (userInfo, apiToken) -> 

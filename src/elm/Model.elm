@@ -166,8 +166,6 @@ updateReadyModel msg model =
 
             VoteButtonClicked commentId voteType ->
                 let
-                    _ = Debug.log "VoteButtonClicked: " (commentId, voteType) 
-
                     outgoingVote interactions clickedVote =
                         let
                             setUp = ( SetUp, 1 )
@@ -355,7 +353,7 @@ updateReadyModel msg model =
                     Err e ->
                         Utils.simpleUpdate
                             { model | commentTree =
-                                SimpleWebData.Failure (Debug.log "> " e)
+                                SimpleWebData.Failure e
                             }
 
                     Ok initialCommentResponse ->
@@ -365,9 +363,6 @@ updateReadyModel msg model =
                             }
 
             ReceivedVoteResponse httpRequestResult ->
-                let
-                    _ = Debug.log "ReceivedVoteResponse: " httpRequestResult
-                in
                 Utils.simpleUpdate model
 
             ReceivedSessionResponse apiToken cachedMaybeAnonUsername httpRequestResult ->
@@ -396,11 +391,10 @@ updateReadyModel msg model =
                 in
                 ( { model
                     | user = 
-                        Debug.log "ReceivedSessionResponse"
-                        (RemoteUser.setUserInfo
+                        RemoteUser.setUserInfo
                             cachedMaybeAnonUsername
                             resultWithToken
-                            model.user)
+                            model.user
                   }
                 , cmd
                 )
@@ -408,11 +402,10 @@ updateReadyModel msg model =
             ReceivedInteractionsResponse fallbackAnonUsername interactionsHttpResult ->
                 Utils.simpleUpdate
                     { model | user =
-                        Debug.log "ReceivedInteractionsResponse"
-                        (RemoteUser.setInteractions
+                        RemoteUser.setInteractions
                             fallbackAnonUsername
                             interactionsHttpResult
-                            model.user)
+                            model.user
                     }
 
             RepliesForCommentFetched commentCuid httpRequestResult ->
