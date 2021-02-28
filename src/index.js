@@ -56,6 +56,8 @@ app.ports.writeToLocalStorage.subscribe(([key, value]) => {
   localStorage.setItem(key, value)
 })
 
+app.ports.openInNewTab.subscribe( url => window.open(url, '_blank'));
+
 
 app.ports.removeSessionToken.subscribe(() => {
   localStorage.removeItem(sessionTokenKey)
