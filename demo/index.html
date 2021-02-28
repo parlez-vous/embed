@@ -26,10 +26,19 @@
         const pvIframe = document.createElement('iframe')
 
         const devOrigin = 'http://dev.parlezvous.io:3000'
-        const prodOrigin = 'https://parlezvous.nyc3.cdn.digitaloceanspaces.com'
+        // const prodOrigin = 'https://parlezvous.nyc3.cdn.digitaloceanspaces.com'
 
-        const embedAppOrigin = prodOrigin
-        const iframeSrc = prodOrigin + '/embed/iframe-app.html'
+        // When deploying to demo.parlezvous.io
+        // we need to swap out `devOrigin` with `prodOrigin`
+        const embedAppOrigin = devOrigin
+
+        // pseudo env vars conditional logic
+        const makeIframeSrc = () =>
+            embedAppOrigin.includes('digitaloceanspaces')
+                ? embedAppOrigin + '/embed/iframe-app.html'
+                : embedAppOrigin
+
+        const iframeSrc = makeIframeSrc()
 
         pvIframe.setAttribute('id', 'pv-iframe')
         pvIframe.setAttribute('scrolling', 'no')
@@ -39,7 +48,7 @@
         document.getElementById('pv-root').insertAdjacentElement('afterend', pvIframe)
 
         window.addEventListener('message', (e) => {
-            if (e.origin !== prodOrigin) return;
+            if (e.origin !== embedAppOrigin) return;
             pvIframe.style.height = e.data.height + 'px'
         })
     </script>
