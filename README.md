@@ -25,7 +25,7 @@ Additionally, you'll want to map localhost to `dev.parlezvous.io` by adding an e
 127.0.0.1       dev.parlezvous.io
 ```
 
-> To be quite honest, i forget exactly why you need to do this. But I'm fairly certain that you need to do this for a good reason 🙃
+The mapping isn't really necessary, but it is useful for back-end purposes (The back-end will create a new record in the `posts` table according to the host url).
 
 Then you can run the elm app:
 
