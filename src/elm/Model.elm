@@ -200,8 +200,7 @@ updateReadyModel msg model =
                     RemoteUser.UserLoaded user ->
                         case user of
                             Anonymous _ ->
-                                -- TODO: trigger modal popup here
-                                Utils.simpleUpdate model
+                                ( model, Utils.toCmd <| AuthenticationButtonClicked AuthenticationInfo.SignUp )
                                 
                             Authenticated userInfo interactions apiToken ->
                                 let

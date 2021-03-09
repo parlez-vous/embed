@@ -7,19 +7,25 @@ port module Utils exposing
     , writeToLocalStorage
     , simpleUpdate
     , timeDiff
+    , toCmd
     )
 
 import Data exposing (Author(..))
 import Data.Comment exposing (Comment)
 import Time exposing (Posix, posixToMillis)
 import Url exposing (Url)
-
+import Task
 
 
 
 
 simpleUpdate : m -> ( m, Cmd msg )
 simpleUpdate m = ( m, Cmd.none )
+
+
+toCmd : msg -> Cmd msg
+toCmd msg =
+    Task.perform (always msg) (Task.succeed ())
 
 
 getAuthorName : Comment -> String
