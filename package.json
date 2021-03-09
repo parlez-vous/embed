@@ -19,6 +19,6 @@
   },
   "devDependencies": {
     "elm-minify": "^2.0.4",
-    "webpack-dev-server": "3.11.0"
+    "webpack-dev-server": "3.11.2"
   }
 }
