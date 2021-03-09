@@ -1,6 +1,7 @@
 const path = require("path")
 const HtmlWebpackPlugin = require('html-webpack-plugin')
 const { DefinePlugin } = require('webpack')
+const ElmMinify = require('elm-minify');
 
 
 const SOURCE_DIR = path.join(__dirname, 'src')
@@ -78,6 +79,7 @@ const commonConfig = {
       }
       // favicon: path.resolve('./static/favicon.png')
     }),
+    new ElmMinify.WebpackPlugin(),
     new DefinePlugin({
       ...copyArgs([
         'API_ENDPOINT',
