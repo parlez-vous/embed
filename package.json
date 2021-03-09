@@ -8,7 +8,7 @@
     "build": "rm -rf ./dist && NODE_ENV=production API_ENDPOINT=https://api-server-sl9i9.ondigitalocean.app webpack && node ./merge-dist-output.js",
     "test": "elm-test",
     "elm": "elm",
-    "format": "elm-format src --yes",
+    "format": "elm-format --yes",
     "prepare": "husky install"
   },
   "author": "",
@@ -31,11 +31,5 @@
   },
   "lint-staged": {
     "*.elm": "npm run format --"
-  },
-  "husky": {
-    "hooks": {
-      "pre-commit": "npx lint-staged",
-      "pre-push": "npm run test"
-    }
   }
 }
