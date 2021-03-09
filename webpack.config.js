@@ -1,6 +1,7 @@
 const path = require("path")
 const HtmlWebpackPlugin = require('html-webpack-plugin')
 const { DefinePlugin } = require('webpack')
+const ElmMinify = require('elm-minify');
 
 
 const SOURCE_DIR = path.join(__dirname, 'src')
@@ -8,6 +9,8 @@ const SOURCE_DIR = path.join(__dirname, 'src')
 const mode = process.env.NODE_ENV === 'production'
   ? 'production'
   : 'development'
+
+const isOptimizedBuild = mode === 'production';
 
 // Copy the specified environment variables into an object we can pass to
 // webpack's DefinePlugin
@@ -33,10 +36,6 @@ const developmentConfig = {
   },
 }
 
-
-
-
-
 const commonConfig = {
   mode,
 
@@ -61,7 +60,7 @@ const commonConfig = {
         exclude: [/elm-stuff/, /node_modules/],
         loader:  'elm-webpack-loader',
         options: {
-          optimize: mode === 'production',
+          optimize: isOptimizedBuild,
         }
       },
     ],
@@ -83,12 +82,15 @@ const commonConfig = {
         'API_ENDPOINT',
         'GIT_REF',
       ]),
-    })
+    }),
+    ...(isOptimizedBuild ? [
+      new ElmMinify.WebpackPlugin(),
+    ] : [])
   ],
 };
 
 
 module.exports = mode === 'development'
   ? { ...commonConfig, ...developmentConfig }
-  : commonConfig
+  : commonConfig;
 
