@@ -6,7 +6,9 @@
   "scripts": {
     "start": "API_ENDPOINT=http://localhost:8080 webpack serve --port 3000",
     "build": "rm -rf ./dist && NODE_ENV=production API_ENDPOINT=https://api-server-sl9i9.ondigitalocean.app webpack && node ./merge-dist-output.js",
-    "test": "elm-test"
+    "test": "elm-test",
+    "elm": "elm",
+    "format": "elm-format src"
   },
   "author": "",
   "license": "ISC",
@@ -18,7 +20,10 @@
     "webpack-cli": "^4.2.0"
   },
   "devDependencies": {
+    "elm": "^0.19.1-5",
+    "elm-format": "^0.8.5",
     "elm-minify": "^2.0.4",
+    "elm-test": "^0.19.1-revision6",
     "webpack-dev-server": "3.11.0"
   }
 }
