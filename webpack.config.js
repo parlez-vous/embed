@@ -26,6 +26,14 @@ const copyArgs = (args) =>
 
 
 const developmentConfig = {
+  devServer: {
+    inline: true,
+    stats: { colors: true },
+    historyApiFallback: true,
+    allowedHosts: [
+      'dev.parlezvous.io',
+    ],
+  },
 }
 
 const commonConfig = {
@@ -79,15 +87,6 @@ const commonConfig = {
       new ElmMinify.WebpackPlugin(),
     ] : [])
   ],
-
-  devServer: {
-    inline: true,
-    stats: { colors: true },
-    historyApiFallback: true,
-    allowedHosts: [
-      'dev.parlezvous.io',
-    ],
-  },
 };
 
 
