@@ -10,6 +10,8 @@ const mode = process.env.NODE_ENV === 'production'
   ? 'production'
   : 'development'
 
+const isOptimizedBuild = mode === 'production';
+
 // Copy the specified environment variables into an object we can pass to
 // webpack's DefinePlugin
 const copyArgs = (args) =>
@@ -24,19 +26,7 @@ const copyArgs = (args) =>
 
 
 const developmentConfig = {
-  devServer: {
-    inline: true,
-    stats: { colors: true },
-    historyApiFallback: true,
-    allowedHosts: [
-      'dev.parlezvous.io',
-    ],
-  },
 }
-
-
-
-
 
 const commonConfig = {
   mode,
@@ -62,7 +52,7 @@ const commonConfig = {
         exclude: [/elm-stuff/, /node_modules/],
         loader:  'elm-webpack-loader',
         options: {
-          optimize: mode === 'production',
+          optimize: isOptimizedBuild,
         }
       },
     ],
@@ -79,18 +69,29 @@ const commonConfig = {
       }
       // favicon: path.resolve('./static/favicon.png')
     }),
-    new ElmMinify.WebpackPlugin(),
     new DefinePlugin({
       ...copyArgs([
         'API_ENDPOINT',
         'GIT_REF',
       ]),
-    })
+    }),
+    ...(isOptimizedBuild ? [
+      new ElmMinify.WebpackPlugin(),
+    ] : [])
   ],
+
+  devServer: {
+    inline: true,
+    stats: { colors: true },
+    historyApiFallback: true,
+    allowedHosts: [
+      'dev.parlezvous.io',
+    ],
+  },
 };
 
 
 module.exports = mode === 'development'
   ? { ...commonConfig, ...developmentConfig }
-  : commonConfig
+  : commonConfig;
 
