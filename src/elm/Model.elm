@@ -151,6 +151,38 @@ setFormSubmittingState intoModalState formState appData =
     }
 
 
+setAuthModalState : AuthenticationInfo.AuthenticationRequest -> AppData -> AppData
+setAuthModalState authType appData =
+    let
+        emptyPasswordField =
+            { value = ""
+            , textVisible = False
+            }
+
+        logInFormState =
+            FV.idle
+            { usernameOrEmail = ""
+            , password = emptyPasswordField
+            }
+
+        signUpFormState =
+            FV.idle
+            { username = ""
+            , email = ""
+            , password = emptyPasswordField
+            , passwordConfirm = emptyPasswordField
+            }
+
+        modalState =
+            case authType of
+                AuthenticationInfo.LogIn ->
+                    ShowingLogInForm logInFormState
+
+                AuthenticationInfo.SignUp ->
+                    ShowingSignUpForm signUpFormState
+    in { appData | modal = modalState }
+
+
 updateReadyModel : Msg -> AppData -> ( Model, Cmd Msg )
 updateReadyModel msg model =
     Tuple.mapFirst Ready <|
@@ -200,8 +232,8 @@ updateReadyModel msg model =
                     RemoteUser.UserLoaded user ->
                         case user of
                             Anonymous _ ->
-                                ( model, Utils.toCmd <| AuthenticationButtonClicked AuthenticationInfo.SignUp )
-                                
+                                Utils.simpleUpdate <| setAuthModalState AuthenticationInfo.SignUp model
+
                             Authenticated userInfo interactions apiToken ->
                                 let
                                     ( voteAction, voteValue ) =
@@ -280,37 +312,7 @@ updateReadyModel msg model =
                 Utils.simpleUpdate { model | textAreaValue = newValue }
 
             AuthenticationButtonClicked request ->
-                let
-                    emptyPasswordField =
-                        { value = ""
-                        , textVisible = False
-                        }
-
-                    logInFormState =
-                        FV.idle
-                            { usernameOrEmail = ""
-                            , password = emptyPasswordField
-                            }
-                    
-                    signUpFormState =
-                        FV.idle
-                            { username = ""
-                            , email = ""
-                            , password = emptyPasswordField
-                            , passwordConfirm = emptyPasswordField
-                            }
-
-                    modalState =
-                        case request of
-                            AuthenticationInfo.LogIn ->
-                                ShowingLogInForm logInFormState
-
-                            AuthenticationInfo.SignUp ->
-                                ShowingSignUpForm signUpFormState
-                in
-                Utils.simpleUpdate
-                    { model | modal = modalState
-                    }
+                Utils.simpleUpdate <| setAuthModalState request model
 
             UserLoggedIn fallbackAnonUsername httpRequestResult ->
                 let
