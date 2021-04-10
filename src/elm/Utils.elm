@@ -23,11 +23,6 @@ simpleUpdate : m -> ( m, Cmd msg )
 simpleUpdate m = ( m, Cmd.none )
 
 
-toCmd : msg -> Cmd msg
-toCmd msg =
-    Task.perform (always msg) (Task.succeed ())
-
-
 getAuthorName : Comment -> String
 getAuthorName { author } =
     case author of
