@@ -7,15 +7,12 @@ port module Utils exposing
     , writeToLocalStorage
     , simpleUpdate
     , timeDiff
-    , toCmd
     )
 
 import Data exposing (Author(..))
 import Data.Comment exposing (Comment)
 import Time exposing (Posix, posixToMillis)
 import Url exposing (Url)
-import Task
-
 
 
 
