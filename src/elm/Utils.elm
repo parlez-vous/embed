@@ -16,6 +16,8 @@ import Url exposing (Url)
 
 
 
+
+
 simpleUpdate : m -> ( m, Cmd msg )
 simpleUpdate m = ( m, Cmd.none )
 
