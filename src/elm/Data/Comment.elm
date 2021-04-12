@@ -54,7 +54,6 @@ type alias CommentMap = Dict Cuid Comment
 type alias CommentTree =
     { comments : CommentMap
     , topLevelComments : Set Cuid
-    , siteVerified : Bool
     , postId : Cuid
     }
 
