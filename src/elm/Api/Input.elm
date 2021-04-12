@@ -119,10 +119,9 @@ commentTreeDecoder =
             D.list D.string
             |> D.map Set.fromList
     in
-    D.map4 CommentTree
+    D.map3 CommentTree
         (D.field "comments" <| D.dict commentDecoder)
         (D.field "topLevelComments" setDecoder)
-        (D.field "siteVerified" D.bool)
         (D.field "postId" D.string)
 
 
