@@ -1,26 +1,28 @@
 module Data exposing
     ( ApiToken(..)
     , Author(..)
+    , CommentVote
+    , Interactions
     , User(..)
     , UserInfo
     , UserInfoWithToken
-    , VoteType(..)
     , VoteAction(..)
-    , Interactions
-    , CommentVote
+    , VoteType(..)
     )
 
 import Data.Cuid exposing (Cuid)
 import Dict exposing (Dict)
 import Time
 
-type ApiToken = ApiToken String
+
+type ApiToken
+    = ApiToken String
 
 
 type User
     = Authenticated UserInfo Interactions ApiToken
-    -- We may have access to a server-generated
-    -- random username if the user has already commented
+      -- We may have access to a server-generated
+      -- random username if the user has already commented
     | Anonymous (Maybe String)
 
 
@@ -38,9 +40,15 @@ type alias UserInfo =
     }
 
 
-type VoteType = Up | Down
+type VoteType
+    = Up
+    | Down
 
-type VoteAction = SetUp | SetDown | SetNeutral
+
+type VoteAction
+    = SetUp
+    | SetDown
+    | SetNeutral
 
 
 type alias CommentVote =
@@ -49,11 +57,14 @@ type alias CommentVote =
     }
 
 
--- data about a particular action that a user has taken 
+
+-- data about a particular action that a user has taken
+
 
 type alias Interactions =
     { commentVotes : Dict Cuid CommentVote
     }
 
-type alias UserInfoWithToken = ( UserInfo, ApiToken )
 
+type alias UserInfoWithToken =
+    ( UserInfo, ApiToken )

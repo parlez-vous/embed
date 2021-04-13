@@ -3,21 +3,23 @@ module Data.Comment exposing
     , CommentMap
     , CommentTree
     , addNewComment
-    , isReply
-    , updateComment
-    , setComment
     , getCommentsFromPointers
+    , isReply
+    , setComment
+    , updateComment
     )
 
 import Data exposing (Author(..))
 import Data.Cuid exposing (Cuid)
 import Dict exposing (Dict)
-import Time exposing (Posix)
 import RemoteData exposing (WebData)
 import Set exposing (Set)
+import Time exposing (Posix)
 
 
-type alias TextAreaVisibility = Bool
+type alias TextAreaVisibility =
+    Bool
+
 
 type alias Comment =
     { id : String
@@ -33,7 +35,7 @@ type alias Comment =
     -- CONTEXT REGARDING replyIds + remoteReplyBuffer:
     --
     -- Comment replies could be in one of the following states:
-    -- 1. Comment came with all of its children replies 
+    -- 1. Comment came with all of its children replies
     -- 2. Comment did not come with all of its replies (because it's so deeply nested in a comment tree)
     -- 3. Comment did not come with all of its replies AND we just added a new reply
     --      Hence you have a "partial" representation of all the replies of that comment
@@ -43,13 +45,14 @@ type alias Comment =
     -- the ids and add them to replyIds immediately
     , replyIds : Set Cuid
     , remoteReplyBuffer : WebData ()
-
     , createdAt : Posix
     , textAreaState : ( TextAreaVisibility, String )
     }
 
 
-type alias CommentMap = Dict Cuid Comment
+type alias CommentMap =
+    Dict Cuid Comment
+
 
 type alias CommentTree =
     { comments : CommentMap
@@ -61,10 +64,11 @@ type alias CommentTree =
 isReply : Comment -> Bool
 isReply { parentCommentId } =
     case parentCommentId of
-        Just _ -> True
-        Nothing -> False
+        Just _ ->
+            True
 
-
+        Nothing ->
+            False
 
 
 getCommentsFromPointers : CommentMap -> Set Cuid -> List Comment
@@ -74,6 +78,7 @@ getCommentsFromPointers commentMap =
             case Dict.get cuid commentMap of
                 Just comment ->
                     comment :: comments
+
                 Nothing ->
                     comments
         )
@@ -87,7 +92,6 @@ updateComment f commentCuid currentTree =
             Dict.update commentCuid (Maybe.map f) currentTree.comments
     in
     { currentTree | comments = newComments }
-
 
 
 setComment : Comment -> CommentTree -> CommentTree
@@ -106,7 +110,7 @@ addNewComment newComment commentTree =
             }
 
         addReply : Cuid -> CommentTree
-        addReply parentCommentId = 
+        addReply parentCommentId =
             let
                 -- updates parent with the new comment's pointer
                 updateParentComment =
@@ -124,28 +128,24 @@ addNewComment newComment commentTree =
                             }
                         )
                         parentCommentId
-
             in
             commentTree
-            |> updateParentComment
-            |> addNewCommentToCommentMap
-
+                |> updateParentComment
+                |> addNewCommentToCommentMap
 
         -- adding an empty tuple argument to enforce lazyness
         addTopLevelComment : () -> CommentTree
         addTopLevelComment _ =
             let
                 addNewCommentPointerToTopLevelComments tree =
-                    { tree 
+                    { tree
                         | topLevelComments =
                             Set.insert newComment.id commentTree.topLevelComments
                     }
-
             in
             commentTree
-            |> addNewCommentPointerToTopLevelComments
-            |> addNewCommentToCommentMap
-
+                |> addNewCommentPointerToTopLevelComments
+                |> addNewCommentToCommentMap
     in
     case newComment.parentCommentId of
         Just parentCommentId ->
@@ -153,4 +153,3 @@ addNewComment newComment commentTree =
 
         Nothing ->
             addTopLevelComment ()
-

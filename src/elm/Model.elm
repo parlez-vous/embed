@@ -1,17 +1,16 @@
 module Model exposing
     ( AppData
+    , ModalState(..)
     , Model(..)
     , Msg(..)
-    , ModalState(..)
     , intoReadyState
     , update
     )
 
-
 import Ant.Form.View as FV
 import Api exposing (ApiClient, ApiRequestOutcome)
 import Browser.Navigation as Nav
-import Data exposing (ApiToken, User(..), UserInfo, UserInfoWithToken, VoteType(..), VoteAction(..))
+import Data exposing (ApiToken, Interactions, User(..), UserInfo, UserInfoWithToken, VoteAction(..), VoteType(..))
 import Data.Comment as Comment exposing (Comment, CommentTree, updateComment)
 import Data.Cuid exposing (Cuid)
 import Data.RemoteUser as RemoteUser exposing (RemoteUser)
@@ -25,11 +24,14 @@ import Task
 import Time
 import UI.AuthenticationInfo as AuthenticationInfo
 import Utils
-import Data exposing (Interactions)
 
 
-type alias LogInFormState = FV.Model AuthenticationInfo.LogInValues
-type alias SignUpFormState = FV.Model AuthenticationInfo.SignUpValues
+type alias LogInFormState =
+    FV.Model AuthenticationInfo.LogInValues
+
+
+type alias SignUpFormState =
+    FV.Model AuthenticationInfo.SignUpValues
 
 
 type ModalState
@@ -38,19 +40,14 @@ type ModalState
     | ShowingSignUpForm SignUpFormState
 
 
-
-
-
-
 type alias AppData =
     { textAreaValue : String
     , commentTree : SimpleWebData CommentTree
     , currentTime : Time.Posix
     , apiClient : Api.ApiClient
     , user : RemoteUser
-
     , modal : ModalState
-    
+
     -- for telemetry
     , reporter : ReporterClient Msg
     }
@@ -61,9 +58,6 @@ type Model
     | Failed String
 
 
-
-
-
 type Msg
     = TextAreaValueChanged String
     | SubmitComment User Cuid (Maybe Cuid) String
@@ -71,22 +65,17 @@ type Msg
     | GoToParlezVous
     | NewCurrentTime Time.Posix
     | VoteButtonClicked Cuid VoteType
-
-    -- Authentication Stuff
+      -- Authentication Stuff
     | AuthenticationButtonClicked AuthenticationInfo.AuthenticationRequest
     | ModalStateChanged ModalState
     | LogInRequested LogInFormState (Maybe String) String String
     | SignUpRequested SignUpFormState (Maybe String) String String String
-
-
-    -- comments have internal state
-    -- (currently text area visibility and text area value)
-    -- this msg represents changes in both of these values
+      -- comments have internal state
+      -- (currently text area visibility and text area value)
+      -- this msg represents changes in both of these values
     | CommentChanged Comment
-
-
-    -- Api outcomes
-    | CommentSubmitted User (ApiRequestOutcome (Time.Posix, Comment))
+      -- Api outcomes
+    | CommentSubmitted User (ApiRequestOutcome ( Time.Posix, Comment ))
     | InitialPostCommentsFetched (ApiRequestOutcome CommentTree)
     | RepliesForCommentFetched Cuid (ApiRequestOutcome CommentTree)
     | ErrorReportSubmitted (ApiRequestOutcome ())
@@ -96,21 +85,22 @@ type Msg
     | ReceivedVoteResponse (ApiRequestOutcome ())
 
 
--- handler functions exported for testing
 
+-- handler functions exported for testing
 -- handleCommentSubmitted : ( Time.Posix, Comment ) ->
 
 
 {-| This function gets called once we receive the FIRST NewCurrentTime msg.
 
 This function should never be called again.
--} 
-intoReadyState 
-    : Maybe String
-   -> ApiClient
-   -> RemoteUser
-   -> Time.Posix
-   -> ( Model, Cmd Msg )
+
+-}
+intoReadyState :
+    Maybe String
+    -> ApiClient
+    -> RemoteUser
+    -> Time.Posix
+    -> ( Model, Cmd Msg )
 intoReadyState gitRef apiClient user time =
     let
         initialAppData =
@@ -123,12 +113,12 @@ intoReadyState gitRef apiClient user time =
             , user = user
             }
 
-        apiRequest = Task.attempt InitialPostCommentsFetched apiClient.getPostComments
+        apiRequest =
+            Task.attempt InitialPostCommentsFetched apiClient.getPostComments
     in
     ( Ready initialAppData
     , apiRequest
     )
-
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -139,7 +129,6 @@ update msg model =
 
         ( Ready embedModel, _ ) ->
             updateReadyModel msg embedModel
-
 
 
 setFormSubmittingState : (FV.Model a -> ModalState) -> FV.Model a -> AppData -> AppData
@@ -161,17 +150,17 @@ setAuthModalState authType appData =
 
         logInFormState =
             FV.idle
-            { usernameOrEmail = ""
-            , password = emptyPasswordField
-            }
+                { usernameOrEmail = ""
+                , password = emptyPasswordField
+                }
 
         signUpFormState =
             FV.idle
-            { username = ""
-            , email = ""
-            , password = emptyPasswordField
-            , passwordConfirm = emptyPasswordField
-            }
+                { username = ""
+                , email = ""
+                , password = emptyPasswordField
+                , passwordConfirm = emptyPasswordField
+                }
 
         modalState =
             case authType of
@@ -180,7 +169,8 @@ setAuthModalState authType appData =
 
                 AuthenticationInfo.SignUp ->
                     ShowingSignUpForm signUpFormState
-    in { appData | modal = modalState }
+    in
+    { appData | modal = modalState }
 
 
 updateReadyModel : Msg -> AppData -> ( Model, Cmd Msg )
@@ -188,7 +178,7 @@ updateReadyModel msg model =
     Tuple.mapFirst Ready <|
         case msg of
             NewCurrentTime time ->
-                Utils.simpleUpdate 
+                Utils.simpleUpdate
                     { model | currentTime = time }
 
             GoToParlezVous ->
@@ -200,33 +190,48 @@ updateReadyModel msg model =
                 let
                     outgoingVote interactions clickedVote =
                         let
-                            setUp = ( SetUp, 1 )
-                            setDown = ( SetDown, -1 )
-                            setNeutral = ( SetNeutral, 0 )
+                            setUp =
+                                ( SetUp, 1 )
+
+                            setDown =
+                                ( SetDown, -1 )
+
+                            setNeutral =
+                                ( SetNeutral, 0 )
 
                             defaultVoteAction =
                                 case voteType of
-                                    Up -> setUp
-                                    Down -> setDown
+                                    Up ->
+                                        setUp
 
+                                    Down ->
+                                        setDown
                         in
                         Dict.get commentId interactions.commentVotes
-                        |> Maybe.map
-                            (\{ value } ->
-                                if value > 0 then
-                                    case clickedVote of
-                                        Up -> setNeutral -- cancel upvote
-                                        Down -> setDown
-                                else if value < 0 then
-                                    case clickedVote of
-                                        Up -> setUp
-                                        Down -> setNeutral -- cancel downvote
-                                else
-                                    defaultVoteAction
-                            )
-                        |> Maybe.withDefault defaultVoteAction
+                            |> Maybe.map
+                                (\{ value } ->
+                                    if value > 0 then
+                                        case clickedVote of
+                                            Up ->
+                                                setNeutral
 
+                                            -- cancel upvote
+                                            Down ->
+                                                setDown
 
+                                    else if value < 0 then
+                                        case clickedVote of
+                                            Up ->
+                                                setUp
+
+                                            Down ->
+                                                setNeutral
+                                        -- cancel downvote
+
+                                    else
+                                        defaultVoteAction
+                                )
+                            |> Maybe.withDefault defaultVoteAction
                 in
                 case model.user of
                     RemoteUser.UserLoaded user ->
@@ -247,9 +252,9 @@ updateReadyModel msg model =
                                                     { commentId = commentId, value = voteValue }
                                                     interactions.commentVotes
                                         in
-                                        { interactions | commentVotes = newCommentVotes
+                                        { interactions
+                                            | commentVotes = newCommentVotes
                                         }
-
 
                                     task =
                                         model.apiClient.submitVoteForComment
@@ -257,8 +262,9 @@ updateReadyModel msg model =
                                             commentId
                                             voteAction
                                 in
-                                ( { model | user =
-                                        RemoteUser.UserLoaded 
+                                ( { model
+                                    | user =
+                                        RemoteUser.UserLoaded
                                             (Authenticated userInfo newInteractions apiToken)
                                   }
                                 , Task.attempt
@@ -286,7 +292,7 @@ updateReadyModel msg model =
                             (UserLoggedIn maybeAnonymousUsername)
                             (model.apiClient.userLogIn logInData)
                 in
-                ( setFormSubmittingState ShowingLogInForm logInFormState model 
+                ( setFormSubmittingState ShowingLogInForm logInFormState model
                 , logInCmd
                 )
 
@@ -306,7 +312,6 @@ updateReadyModel msg model =
                 ( setFormSubmittingState ShowingSignUpForm signUpFormState model
                 , signUpCmd
                 )
-
 
             TextAreaValueChanged newValue ->
                 Utils.simpleUpdate { model | textAreaValue = newValue }
@@ -331,8 +336,7 @@ updateReadyModel msg model =
                     Err e ->
                         Utils.simpleUpdate newModel
 
-
-                    Ok (_, (Data.ApiToken token) as apiToken) ->
+                    Ok ( _, (Data.ApiToken token) as apiToken ) ->
                         let
                             getInteractionsCmd =
                                 Task.attempt
@@ -342,25 +346,27 @@ updateReadyModel msg model =
                         ( newModel
                         , Cmd.batch
                             [ Utils.writeToLocalStorage
-                                ( "sessionToken", token
+                                ( "sessionToken"
+                                , token
                                 )
-                            , getInteractionsCmd 
+                            , getInteractionsCmd
                             ]
                         )
-
 
             InitialPostCommentsFetched httpRequestResult ->
                 case httpRequestResult of
                     Err e ->
                         Utils.simpleUpdate
-                            { model | commentTree =
-                                SimpleWebData.Failure e
+                            { model
+                                | commentTree =
+                                    SimpleWebData.Failure e
                             }
 
                     Ok initialCommentResponse ->
                         Utils.simpleUpdate
-                            { model | commentTree =
-                                SimpleWebData.Success initialCommentResponse
+                            { model
+                                | commentTree =
+                                    SimpleWebData.Success initialCommentResponse
                             }
 
             ReceivedVoteResponse httpRequestResult ->
@@ -369,9 +375,9 @@ updateReadyModel msg model =
             ReceivedSessionResponse apiToken cachedMaybeAnonUsername httpRequestResult ->
                 let
                     resultWithToken =
-                        Result.map (\user -> (user, apiToken)) httpRequestResult
+                        Result.map (\user -> ( user, apiToken )) httpRequestResult
 
-                    cmd = 
+                    cmd =
                         case httpRequestResult of
                             Ok _ ->
                                 Cmd.none
@@ -381,17 +387,18 @@ updateReadyModel msg model =
                                     Http.BadStatus statusValue ->
                                         if statusValue == 401 then
                                             Utils.removeSessionToken ()
+
                                         else
                                             -- TODO: report unexpected HTTP status code
                                             Cmd.none
 
-                                    _ -> 
+                                    _ ->
                                         -- TODO: handle other HTTP errors
                                         -- https://package.elm-lang.org/packages/elm/http/latest/Http#Error
                                         Cmd.none
                 in
                 ( { model
-                    | user = 
+                    | user =
                         RemoteUser.setUserInfo
                             cachedMaybeAnonUsername
                             resultWithToken
@@ -402,19 +409,21 @@ updateReadyModel msg model =
 
             ReceivedInteractionsResponse fallbackAnonUsername interactionsHttpResult ->
                 Utils.simpleUpdate
-                    { model | user =
-                        RemoteUser.setInteractions
-                            fallbackAnonUsername
-                            interactionsHttpResult
-                            model.user
+                    { model
+                        | user =
+                            RemoteUser.setInteractions
+                                fallbackAnonUsername
+                                interactionsHttpResult
+                                model.user
                     }
 
             RepliesForCommentFetched commentCuid httpRequestResult ->
                 case httpRequestResult of
                     Err e ->
                         Utils.simpleUpdate
-                            { model | commentTree =
-                                SimpleWebData.Failure e
+                            { model
+                                | commentTree =
+                                    SimpleWebData.Failure e
                             }
 
                     -- 1. update this specific comment's reply list
@@ -425,12 +434,13 @@ updateReadyModel msg model =
                             -- direct children of the parent comment in question.
                             -- all other comments are 2nd or 3rd level descendants
                             -- i.e. replies to other replies in this api response
-                            directRepliesToComment = subCommentTree.topLevelComments
+                            directRepliesToComment =
+                                subCommentTree.topLevelComments
 
                             -- update the comment in question
                             -- with the list of children reply ids
                             treeStateUpdate =
-                                updateComment 
+                                updateComment
                                     (\comment ->
                                         { comment
                                             | replyIds = Set.union comment.replyIds directRepliesToComment
@@ -442,25 +452,28 @@ updateReadyModel msg model =
                             newCommentTree =
                                 mapSimpleWebData
                                     (\commentTree ->
-                                        let 
+                                        let
                                             -- run the above mutation
-                                            treeWithUpdatedState = treeStateUpdate commentTree
+                                            treeWithUpdatedState =
+                                                treeStateUpdate commentTree
                                         in
-                                        { treeWithUpdatedState | comments =
-                                            -- add new replies / comments to flattened comment map
-                                            Dict.union subCommentTree.comments treeWithUpdatedState.comments
+                                        { treeWithUpdatedState
+                                            | comments =
+                                                -- add new replies / comments to flattened comment map
+                                                Dict.union subCommentTree.comments treeWithUpdatedState.comments
                                         }
                                     )
                                     model.commentTree
                         in
                         Utils.simpleUpdate
-                            { model | commentTree = newCommentTree 
+                            { model
+                                | commentTree = newCommentTree
                             }
 
             LoadRepliesForCommentRequested commentCuid ->
                 let
                     updateCommentsInCommentTree =
-                        updateComment 
+                        updateComment
                             (\comment ->
                                 { comment
                                     | remoteReplyBuffer = RemoteData.Loading
@@ -468,42 +481,42 @@ updateReadyModel msg model =
                             )
                             commentCuid
 
-                    newCommentTree = 
+                    newCommentTree =
                         mapSimpleWebData updateCommentsInCommentTree model.commentTree
 
-                    tagger = RepliesForCommentFetched commentCuid
+                    tagger =
+                        RepliesForCommentFetched commentCuid
 
-                    apiRequest = Task.attempt tagger (model.apiClient.getRepliesForComment commentCuid)
+                    apiRequest =
+                        Task.attempt tagger (model.apiClient.getRepliesForComment commentCuid)
                 in
                 -- 1. set this specific comment's replies as RemoteData.Loading
-                -- 2. issue Cmd to fetch data 
+                -- 2. issue Cmd to fetch data
                 ( { model | commentTree = newCommentTree }
                 , apiRequest
                 )
 
-        
             SubmitComment user postId maybeParentCommentId commentBody ->
                 let
-                    -- Task Stuff 
-                    addCommentTask = 
+                    -- Task Stuff
+                    addCommentTask =
                         model.apiClient.addComment
                             commentBody
                             postId
                             maybeParentCommentId
-                            user 
+                            user
 
                     wrapCommentInTimestamp comment =
                         Time.now
-                        |> Task.map (\timestamp -> (timestamp, comment))
+                            |> Task.map (\timestamp -> ( timestamp, comment ))
 
                     tasks =
                         addCommentTask
-                        |> Task.andThen wrapCommentInTimestamp
-                        |> Task.attempt (CommentSubmitted user)
+                            |> Task.andThen wrapCommentInTimestamp
+                            |> Task.attempt (CommentSubmitted user)
                 in
                 -- update the time, then send the request
                 ( model, tasks )
-
 
             CommentSubmitted user result ->
                 case result of
@@ -517,6 +530,7 @@ updateReadyModel msg model =
                             newTextAreaValue =
                                 if Comment.isReply newComment then
                                     model.textAreaValue
+
                                 else
                                     ""
 
@@ -530,12 +544,10 @@ updateReadyModel msg model =
                                     , textAreaValue = newTextAreaValue
                                 }
 
-
                             reporterMsg =
                                 model.reporter.reportInvalidTimeStamps
                                     currentTime
                                     newComment.createdAt
-
                         in
                         case user of
                             Anonymous maybeAnonymousUsername ->
@@ -544,7 +556,7 @@ updateReadyModel msg model =
                                         -- we already have the username in both memory and cached in
                                         -- localstorage
                                         ( newModel, reporterMsg )
-                                    
+
                                     -- In the event that the user is not logged in
                                     -- AND we don't yet have a anonymous username for them
                                     -- grab the server-generated username from the new comment and
@@ -553,12 +565,11 @@ updateReadyModel msg model =
                                     --   - localstorage (for future sessions)
                                     Nothing ->
                                         ( { newModel
-                                            | user = 
+                                            | user =
                                                 Just newComment.fallbackAnonUsername
-                                                |> Anonymous
-                                                |> RemoteUser.UserLoaded
+                                                    |> Anonymous
+                                                    |> RemoteUser.UserLoaded
                                           }
-
                                         , Cmd.batch
                                             [ Utils.writeToLocalStorage
                                                 ( "anonymousUsername"
@@ -567,19 +578,18 @@ updateReadyModel msg model =
                                             , reporterMsg
                                             ]
                                         )
-                                    
+
                             Authenticated _ _ _ ->
                                 ( newModel, reporterMsg )
 
             CommentChanged comment ->
                 Utils.simpleUpdate
-                    { model | commentTree = 
-                        mapSimpleWebData
-                            (Comment.setComment comment)
-                            model.commentTree
+                    { model
+                        | commentTree =
+                            mapSimpleWebData
+                                (Comment.setComment comment)
+                                model.commentTree
                     }
-
 
             ErrorReportSubmitted _ ->
                 Utils.simpleUpdate model
-

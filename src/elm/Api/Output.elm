@@ -1,5 +1,4 @@
-module Api.Output exposing (addCommentBody, LogIn, SignUp)
-
+module Api.Output exposing (LogIn, SignUp, addCommentBody)
 
 {-| JSON encoders to send JSON data
 -}
@@ -9,24 +8,25 @@ import Http exposing (Body)
 import Json.Encode as E exposing (Value)
 
 
-
 encodeNullable : (a -> Value) -> Maybe a -> Value
 encodeNullable f =
     Maybe.map f
-    >> Maybe.withDefault E.null  
+        >> Maybe.withDefault E.null
 
 
 type alias AddComment =
     { body : String
     , parentCommentId : Maybe Cuid
-    , authorId : Maybe Cuid 
+    , authorId : Maybe Cuid
     , anonAuthorName : Maybe String
     }
+
 
 addCommentBody : AddComment -> Body
 addCommentBody { body, parentCommentId, authorId, anonAuthorName } =
     let
-        maybeEncode = encodeNullable E.string
+        maybeEncode =
+            encodeNullable E.string
 
         jsonValue =
             E.object
@@ -38,8 +38,9 @@ addCommentBody { body, parentCommentId, authorId, anonAuthorName } =
     in
     Http.jsonBody jsonValue
 
+
 type alias LogIn =
-    { usernameOrEmail : String 
+    { usernameOrEmail : String
     , password : String
     }
 
@@ -49,4 +50,3 @@ type alias SignUp =
     , email : String
     , password : String
     }
-

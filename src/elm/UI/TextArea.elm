@@ -1,8 +1,7 @@
-module UI.TextArea exposing (replyTextArea, topLevelTextArea, toHtml)
-
+module UI.TextArea exposing (replyTextArea, toHtml, topLevelTextArea)
 
 import Ant.Button as Btn exposing (button)
-import Ant.Input as Input exposing (input, Input)
+import Ant.Input as Input exposing (Input, input)
 import Css exposing (..)
 import Data.Comment exposing (Comment)
 import Html.Styled as S exposing (Html, fromUnstyled)
@@ -10,21 +9,22 @@ import Html.Styled.Attributes exposing (css)
 import Utils
 
 
-type TextArea msg = TextArea (Input msg, String, Maybe (Html msg))
+type TextArea msg
+    = TextArea ( Input msg, String, Maybe (Html msg) )
 
 
-replyTextArea : Comment -> ( String -> msg ) -> TextArea msg
+replyTextArea : Comment -> (String -> msg) -> TextArea msg
 replyTextArea comment updateTextArea =
     let
-        textAreaInput = 
+        textAreaInput =
             input updateTextArea
-                |> Input.withTextAreaType { rows = 4 } 
-                |> Input.withPlaceholder ("respond to " ++ (Utils.getAuthorName comment))
+                |> Input.withTextAreaType { rows = 4 }
+                |> Input.withPlaceholder ("respond to " ++ Utils.getAuthorName comment)
     in
-    TextArea (textAreaInput, Tuple.second comment.textAreaState, Nothing)
+    TextArea ( textAreaInput, Tuple.second comment.textAreaState, Nothing )
 
 
-topLevelTextArea : ( String -> msg ) -> String -> Html msg -> TextArea msg
+topLevelTextArea : (String -> msg) -> String -> Html msg -> TextArea msg
 topLevelTextArea updateTextArea textAreaValue extraInfo =
     let
         textAreaInput =
@@ -32,21 +32,23 @@ topLevelTextArea updateTextArea textAreaValue extraInfo =
                 |> Input.withTextAreaType { rows = 5 }
                 |> Input.withPlaceholder "What are your thoughts?"
     in
-    TextArea (textAreaInput, textAreaValue, Just extraInfo)
-
+    TextArea ( textAreaInput, textAreaValue, Just extraInfo )
 
 
 toHtml : Maybe msg -> TextArea msg -> Html msg
-toHtml maybeSubmit (TextArea (input, value, maybeExtraInfo)) =
+toHtml maybeSubmit (TextArea ( input, value, maybeExtraInfo )) =
     let
         htmlTextArea =
             Input.toHtml value input
-            |> fromUnstyled
+                |> fromUnstyled
 
         noActionAvailable =
             case maybeSubmit of
-                Just _ -> False
-                Nothing -> True
+                Just _ ->
+                    False
+
+                Nothing ->
+                    True
 
         maybeBindOnClick btn =
             case maybeSubmit of
@@ -58,20 +60,22 @@ toHtml maybeSubmit (TextArea (input, value, maybeExtraInfo)) =
 
         submitCommentButton =
             button "Add Comment"
-            |> Btn.disabled (String.length value == 0 || noActionAvailable)
-            |> maybeBindOnClick
-            |> Btn.toHtml
-            |> fromUnstyled
+                |> Btn.disabled (String.length value == 0 || noActionAvailable)
+                |> maybeBindOnClick
+                |> Btn.toHtml
+                |> fromUnstyled
 
         extraInfo =
             case maybeExtraInfo of
-                Just info -> info
-                Nothing -> S.text ""
+                Just info ->
+                    info
 
+                Nothing ->
+                    S.text ""
     in
     S.div []
         [ htmlTextArea
-        , S.div 
+        , S.div
             [ css
                 [ displayFlex
                 , justifyContent spaceBetween
@@ -80,5 +84,3 @@ toHtml maybeSubmit (TextArea (input, value, maybeExtraInfo)) =
             ]
             [ extraInfo, submitCommentButton ]
         ]
-
-

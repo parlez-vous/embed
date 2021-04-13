@@ -1,12 +1,12 @@
 port module Utils exposing
     ( getAuthorName
-    , humanReadableTimestamp
     , getPathFromUrl
-    , removeSessionToken
+    , humanReadableTimestamp
     , openInNewTab
-    , writeToLocalStorage
+    , removeSessionToken
     , simpleUpdate
     , timeDiff
+    , writeToLocalStorage
     )
 
 import Data exposing (Author(..))
@@ -15,11 +15,9 @@ import Time exposing (Posix, posixToMillis)
 import Url exposing (Url)
 
 
-
-
-
 simpleUpdate : m -> ( m, Cmd msg )
-simpleUpdate m = ( m, Cmd.none )
+simpleUpdate m =
+    ( m, Cmd.none )
 
 
 getAuthorName : Comment -> String
@@ -32,31 +30,35 @@ getAuthorName { author } =
             userInfo.username
 
 
+
 --- Ports
-
-
 -- ( String = key, String = value )
+
+
 port writeToLocalStorage : ( String, String ) -> Cmd msg
+
+
 port removeSessionToken : () -> Cmd msg
+
 
 port openInNewTab : String -> Cmd msg
 
 
 
-
 --- URL Utils
+
 
 getPathFromUrl : Url -> String
 getPathFromUrl url =
     if url.path == "/" then
         "root"
+
     else
         url.path
 
 
 
-
---- Time Stuff 
+--- Time Stuff
 
 
 timeDiff : Posix -> Posix -> Int
@@ -65,83 +67,103 @@ timeDiff first second =
 
 
 
--- Constants 
+-- Constants
+
 
 one_minute : Int
-one_minute = 1000 * 60
+one_minute =
+    1000 * 60
+
 
 one_hour : Int
-one_hour = one_minute * 60
+one_hour =
+    one_minute * 60
+
 
 one_day : Int
-one_day = one_hour * 24
+one_day =
+    one_hour * 24
+
 
 one_week : Int
-one_week = one_day * 7
+one_week =
+    one_day * 7
+
 
 one_month : Int
-one_month = one_day * 30
+one_month =
+    one_day * 30
+
 
 one_year : Int
-one_year = one_month * 12
+one_year =
+    one_month * 12
 
 
 
 --- Conversions
 
+
 msToSec : Int -> Int
-msToSec val = 
+msToSec val =
     val // 1000
+
 
 msToMin : Int -> Int
 msToMin val =
     msToSec val // 60
 
+
 msToHours : Int -> Int
 msToHours val =
     msToMin val // 60
+
 
 msToDays : Int -> Int
 msToDays val =
     msToHours val // 24
 
+
 msToWeeks : Int -> Int
 msToWeeks val =
     msToDays val // 7
 
+
 msToMonths : Int -> Int
 msToMonths val =
     msToDays val // 30
+
 
 msToYears : Int -> Int
 msToYears val =
     msToMonths val // 12
 
 
-
-
-
-
 maybePluralizeLabel : Int -> String -> String
 maybePluralizeLabel value label =
     let
-        valStr = String.fromInt value 
+        valStr =
+            String.fromInt value
     in
     if value == 1 then
         valStr ++ " " ++ label ++ " ago"
+
     else
         valStr ++ " " ++ label ++ "s ago"
-        
+
 
 humanReadableTimestamp : Posix -> Posix -> String
 humanReadableTimestamp reference date =
     let
-        differenceMs = timeDiff reference date
+        differenceMs =
+            timeDiff reference date
     in
     if differenceMs < 0 then
         ""
+
     else if differenceMs < 1000 then
         "just now"
+
     else if differenceMs < one_minute then
         maybePluralizeLabel (msToSec differenceMs) "second"
 
@@ -158,8 +180,7 @@ humanReadableTimestamp reference date =
         maybePluralizeLabel (msToWeeks differenceMs) "week"
 
     else if differenceMs < one_year then
-        maybePluralizeLabel (msToMonths differenceMs) "month" 
+        maybePluralizeLabel (msToMonths differenceMs) "month"
 
     else
         maybePluralizeLabel (msToYears differenceMs) "year"
-
