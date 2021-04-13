@@ -3,7 +3,7 @@ module Main exposing (main)
 import Ant.Button as Btn exposing (button)
 import Ant.Form.View as FV
 import Ant.Modal as Modal
-import Api 
+import Api
 import Browser
 import Css exposing (..)
 import Data exposing (User(..))
@@ -13,7 +13,7 @@ import Data.SimpleWebData as SimpleWebData
 import Html exposing (Html)
 import Html.Styled as Styled exposing (fromUnstyled)
 import Html.Styled.Attributes exposing (css)
-import Model exposing (AppData, Model(..), ModalState(..), Msg(..))
+import Model exposing (AppData, ModalState(..), Model(..), Msg(..))
 import Task
 import Time
 import UI.AppShell exposing (appShell)
@@ -24,7 +24,7 @@ import Url
 import Utils
 
 
-type alias Flags = 
+type alias Flags =
     { apiEndpoint : String
     , siteUrl : String
     , anonymousUsername : Maybe String
@@ -34,26 +34,27 @@ type alias Flags =
     }
 
 
-main : Program Flags Model Msg 
+main : Program Flags Model Msg
 main =
-  Browser.element
-    { init = init
-    , view = view
-    , update = Model.update
-    , subscriptions = subscriptions
-    }
-
+    Browser.element
+        { init = init
+        , view = view
+        , update = Model.update
+        , subscriptions = subscriptions
+        }
 
 
 
 -- INIT
 
-init : Flags -> (Model, Cmd Msg)
+
+init : Flags -> ( Model, Cmd Msg )
 init flags =
     case ( Url.fromString flags.apiEndpoint, Url.fromString flags.siteUrl ) of
         ( Just apiBaseUrl, Just siteUrl ) ->
             let
-                apiClient = Api.getApiClient apiBaseUrl siteUrl
+                apiClient =
+                    Api.getApiClient apiBaseUrl siteUrl
 
                 user =
                     case maybeApiToken of
@@ -63,10 +64,9 @@ init flags =
                         Just _ ->
                             RemoteUser.AwaitingUserInfoAndInteractions
 
-
                 ( model, baseCmd ) =
                     Model.intoReadyState
-                        flags.gitRef 
+                        flags.gitRef
                         apiClient
                         user
                         (Time.millisToPosix flags.currentTime)
@@ -78,7 +78,7 @@ init flags =
             case maybeApiToken of
                 -- if no token, then just get comments
                 Nothing ->
-                    ( model 
+                    ( model
                     , baseCmd
                     )
 
@@ -112,18 +112,16 @@ init flags =
 
 
 
-
-
-
-
 -- SUBSCRIPTIONS
-
 -- Currently assuming that the first Msg emitted occurs
 -- after the time elapses, not immediately at time 0
+
+
 subscriptions : Model -> Sub Msg
 subscriptions _ =
     let
-        fiveMinutes = 1000 * 60 * 5
+        fiveMinutes =
+            1000 * 60 * 5
     in
     Time.every fiveMinutes NewCurrentTime
 
@@ -131,9 +129,10 @@ subscriptions _ =
 
 -- VIEW
 
+
 intoSubmitCommentAction : Cuid -> Maybe Cuid -> String -> RemoteUser -> Maybe Msg
 intoSubmitCommentAction postId parentCommentId textAreaValue remoteUser =
-    case remoteUser of 
+    case remoteUser of
         RemoteUser.UserLoaded user ->
             Just (SubmitComment user postId parentCommentId textAreaValue)
 
@@ -146,10 +145,10 @@ viewAuthenticationForm modalState anonymousUsername =
     let
         viewModal contents title =
             Modal.modal contents
-            |> Modal.withTitle title
-            |> Modal.withOnCancel (\_ -> ModalStateChanged Hidden)
-            |> Modal.toHtml True
-            |> fromUnstyled
+                |> Modal.withTitle title
+                |> Modal.withOnCancel (\_ -> ModalStateChanged Hidden)
+                |> Modal.toHtml True
+                |> fromUnstyled
     in
     case modalState of
         Hidden ->
@@ -157,7 +156,8 @@ viewAuthenticationForm modalState anonymousUsername =
 
         ShowingLogInForm logInFormState ->
             let
-                formSubmitMsg = LogInRequested logInFormState anonymousUsername 
+                formSubmitMsg =
+                    LogInRequested logInFormState anonymousUsername
 
                 logInForm =
                     FV.toHtml
@@ -173,7 +173,8 @@ viewAuthenticationForm modalState anonymousUsername =
 
         ShowingSignUpForm signUpFormState ->
             let
-                formSubmitMsg = SignUpRequested signUpFormState anonymousUsername
+                formSubmitMsg =
+                    SignUpRequested signUpFormState anonymousUsername
 
                 signUpForm =
                     FV.toHtml
@@ -186,7 +187,6 @@ viewAuthenticationForm modalState anonymousUsername =
                         signUpFormState
             in
             viewModal signUpForm "Sign Up"
-
 
 
 viewApp : AppData -> Styled.Html Msg
@@ -202,18 +202,20 @@ viewApp model =
 
                 SimpleWebData.Success commentTree ->
                     let
-                        timeStampFormatter = Utils.humanReadableTimestamp model.currentTime
+                        timeStampFormatter =
+                            Utils.humanReadableTimestamp model.currentTime
 
                         actions =
                             { loadRepliesForComment = LoadRepliesForCommentRequested
                             , updateComment = CommentChanged
                             , submitCommentVote = VoteButtonClicked
-                            , submitReply = \commentId replyTextAreaValue ->
-                                intoSubmitCommentAction
-                                    commentTree.postId
-                                    (Just commentId)
-                                    replyTextAreaValue
-                                    model.user
+                            , submitReply =
+                                \commentId replyTextAreaValue ->
+                                    intoSubmitCommentAction
+                                        commentTree.postId
+                                        (Just commentId)
+                                        replyTextAreaValue
+                                        model.user
                             }
 
                         commentsSection =
@@ -231,31 +233,31 @@ viewApp model =
                                 model.textAreaValue
                                 model.user
 
-
-                        authenticationPrompt = viewAuthenticationInfo model.user AuthenticationButtonClicked
+                        authenticationPrompt =
+                            viewAuthenticationInfo model.user AuthenticationButtonClicked
 
                         textArea =
                             topLevelTextArea TextAreaValueChanged model.textAreaValue authenticationPrompt
-                            |> TextArea.toHtml textAreaAction
+                                |> TextArea.toHtml textAreaAction
                     in
                     Styled.div []
                         [ Styled.div [ css [ marginBottom (px 10) ] ]
                             [ textArea ]
-                        , commentsSection 
+                        , commentsSection
                         ]
 
         poweredByParlezVous =
             let
-                poweredByText = button "ParlezVous"
-                    |> Btn.onClick GoToParlezVous
-                    |> Btn.withType Btn.Text
-                    |> Btn.toHtml
-                    |> fromUnstyled
-
+                poweredByText =
+                    button "ParlezVous"
+                        |> Btn.onClick GoToParlezVous
+                        |> Btn.withType Btn.Text
+                        |> Btn.toHtml
+                        |> fromUnstyled
             in
             Styled.div
                 [ css
-                    [ marginTop (px 25) 
+                    [ marginTop (px 25)
                     , textAlign center
                     ]
                 ]
@@ -266,7 +268,7 @@ viewApp model =
         modal =
             case model.user of
                 RemoteUser.UserLoaded user ->
-                    case user of 
+                    case user of
                         Anonymous maybeAnonymousUsername ->
                             viewAuthenticationForm model.modal maybeAnonymousUsername
 
@@ -283,7 +285,6 @@ viewApp model =
         ]
 
 
-
 view : Model -> Html Msg
 view model =
     let
@@ -296,4 +297,3 @@ view model =
                     viewApp appData
     in
     appShell contents
-

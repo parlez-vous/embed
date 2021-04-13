@@ -3,26 +3,26 @@ module Api.Input exposing
     , commentDecoder
     , commentTreeDecoder
     , interactionsDecoder
-    , userInfoDecoder
     , userAndTokenDecoder
+    , userInfoDecoder
     )
 
 {-| Represents the Incoming data from the server.
 
 Includes JSON decoders and types.
+
 -}
 
-import Data exposing (Author(..), CommentVote, Interactions, UserInfo, UserInfoWithToken, ApiToken(..))
+import Data exposing (ApiToken(..), Author(..), CommentVote, Interactions, User(..), UserInfo, UserInfoWithToken)
 import Data.Comment exposing (Comment, CommentTree)
 import Json.Decode as D exposing (Decoder)
-import Time exposing (Posix)
-import Set
 import RemoteData
-import Data exposing (User(..))
+import Set
+import Time exposing (Posix)
 
 
-map9 
-    : (a -> b -> c -> d -> e -> f -> g -> h -> i -> value)
+map9 :
+    (a -> b -> c -> d -> e -> f -> g -> h -> i -> value)
     -> Decoder a
     -> Decoder b
     -> Decoder c
@@ -34,7 +34,7 @@ map9
     -> Decoder i
     -> Decoder value
 map9 f da db dc dd de df dg dh di =
-    (D.map2 (\f_ i -> f_ i))
+    D.map2 (\f_ i -> f_ i)
         (D.map8 f da db dc dd de df dg dh)
         di
 
@@ -49,9 +49,8 @@ timestampDecoder =
     D.map Time.millisToPosix D.int
 
 
-
-intoComment
-    : String
+intoComment :
+    String
     -> Maybe String
     -> String
     -> String
@@ -62,18 +61,22 @@ intoComment
     -> Comment
 intoComment id maybeParentCommentId anonAuthorName body replyIds isLeaf createdAt maybeUserInfo =
     let
-        replyIdSet = Set.fromList replyIds
+        replyIdSet =
+            Set.fromList replyIds
 
         commentReplyBufferState =
             -- if the server didn't respond back with the Comment's replies...
             if Set.isEmpty replyIdSet && not isLeaf then
                 RemoteData.NotAsked
+
             else
                 RemoteData.Success ()
 
-        textAreaVisibility = False
+        textAreaVisibility =
+            False
 
-        textAreaState = ( textAreaVisibility, "" )
+        textAreaState =
+            ( textAreaVisibility, "" )
 
         author =
             case maybeUserInfo of
@@ -83,7 +86,8 @@ intoComment id maybeParentCommentId anonAuthorName body replyIds isLeaf createdA
                 Nothing ->
                     Anonymous_ anonAuthorName
 
-        isFolded = False
+        isFolded =
+            False
     in
     Comment
         id
@@ -100,7 +104,7 @@ intoComment id maybeParentCommentId anonAuthorName body replyIds isLeaf createdA
 
 
 commentDecoder : Decoder Comment
-commentDecoder = 
+commentDecoder =
     D.map8 intoComment
         (D.field "id" D.string)
         (D.field "parentCommentId" <| D.maybe D.string)
@@ -117,13 +121,12 @@ commentTreeDecoder =
     let
         setDecoder =
             D.list D.string
-            |> D.map Set.fromList
+                |> D.map Set.fromList
     in
     D.map3 CommentTree
         (D.field "comments" <| D.dict commentDecoder)
         (D.field "topLevelComments" setDecoder)
         (D.field "postId" D.string)
-
 
 
 userInfoDecoder : Decoder UserInfo
@@ -145,7 +148,7 @@ userInfoDecoder =
 
 userAndTokenDecoder : Decoder UserInfoWithToken
 userAndTokenDecoder =
-    D.map2 (\userInfo tokenString -> (userInfo, ApiToken tokenString))
+    D.map2 (\userInfo tokenString -> ( userInfo, ApiToken tokenString ))
         (apiResponseDecoder userInfoDecoder)
         (D.field "sessionToken" D.string)
 
@@ -160,5 +163,3 @@ interactionsDecoder =
     in
     D.map Interactions
         (D.field "commentVotes" <| D.dict commentVotesDecoder)
-
-

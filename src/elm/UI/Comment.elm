@@ -3,12 +3,12 @@ module UI.Comment exposing (viewCommentsSection)
 {-| UI modules for rendering a tree of comments.
 -}
 
-import Ant.Button as Btn exposing (button, Button)
-import Ant.Typography.Text as Text exposing (Text, text)
+import Ant.Button as Btn exposing (Button, button)
 import Ant.Icons as Icon exposing (Icon, downOutlined, upOutlined)
+import Ant.Typography.Text as Text exposing (Text, text)
 import Css exposing (..)
-import Data exposing (User(..), Interactions, VoteType(..))
-import Data.Comment as Comment exposing (Comment, CommentTree, CommentMap)
+import Data exposing (Interactions, User(..), VoteType(..))
+import Data.Comment as Comment exposing (Comment, CommentMap, CommentTree)
 import Data.Cuid exposing (Cuid)
 import Dict
 import Html.Styled as S exposing (fromUnstyled)
@@ -17,13 +17,17 @@ import Html.Styled.Events exposing (onClick)
 import RemoteData exposing (WebData)
 import Set exposing (Set)
 import Time
-import UI.TextArea as TextArea 
+import UI.TextArea as TextArea
 import Utils
 
 
+type alias StyledHtml a =
+    S.Html a
 
-type alias StyledHtml a = S.Html a
-type alias TimeFormatter = Time.Posix -> String
+
+type alias TimeFormatter =
+    Time.Posix -> String
+
 
 type alias Effects msg =
     { loadRepliesForComment : Cuid -> msg
@@ -35,78 +39,85 @@ type alias Effects msg =
 
 type CommentPointers msg
     = Simple (Set Cuid)
-    | Async 
+    | Async
         -- loaded ids
         ( Set Cuid
-        -- buffer state
+          -- buffer state
         , WebData ()
-        -- "load more" action
+          -- "load more" action
         , msg
         )
 
 
-
 renderText : Text -> StyledHtml msg
-renderText = Text.toHtml >> fromUnstyled
+renderText =
+    Text.toHtml >> fromUnstyled
 
 
 strongText : String -> StyledHtml msg
 strongText val =
     text val
-    |> Text.strong
-    |> renderText
+        |> Text.strong
+        |> renderText
 
 
 primaryText : String -> StyledHtml msg
 primaryText val =
     text val
-    |> Text.withType Text.Primary
-    |> renderText
-
+        |> Text.withType Text.Primary
+        |> renderText
 
 
 secondaryText : String -> StyledHtml msg
 secondaryText val =
     text val
-    |> Text.withType Text.Secondary
-    |> renderText
-
+        |> Text.withType Text.Secondary
+        |> renderText
 
 
 link : String -> Button msg
 link val =
     button val
-    |> Btn.withType Btn.Link
+        |> Btn.withType Btn.Link
+
 
 
 -- Color of vote icons depends on the interaction that the user
 -- has had on a particular comment
 -- Either they have a (+1) upvote or a (-1) downvote
+
+
 renderVoteIcon : Effects msg -> Comment -> Maybe Interactions -> VoteType -> Icon msg -> StyledHtml msg
 renderVoteIcon { submitCommentVote } comment maybeInteractions vote icon =
     let
-        defaultColor = ( "color", "#737373" )
-        chosenVoteColor = ( "color", "#4ba9ff" )
-        
+        defaultColor =
+            ( "color", "#737373" )
+
+        chosenVoteColor =
+            ( "color", "#4ba9ff" )
+
         voteIconColor =
             case maybeInteractions of
-                Nothing -> defaultColor
+                Nothing ->
+                    defaultColor
 
                 Just interactions ->
                     -- this represents the logged-in users
                     -- vote for this comment
                     interactions.commentVotes
-                    |> Dict.get comment.id 
-                    |> Maybe.map
-                        (\{ value } ->
-                            if value == 1 && vote == Up then
-                                chosenVoteColor 
-                            else if value == -1 && vote == Down then
-                                chosenVoteColor
-                            else
-                                defaultColor
-                        )
-                    |> Maybe.withDefault defaultColor
+                        |> Dict.get comment.id
+                        |> Maybe.map
+                            (\{ value } ->
+                                if value == 1 && vote == Up then
+                                    chosenVoteColor
+
+                                else if value == -1 && vote == Down then
+                                    chosenVoteColor
+
+                                else
+                                    defaultColor
+                            )
+                        |> Maybe.withDefault defaultColor
 
         iconHtml =
             icon
@@ -119,7 +130,6 @@ renderVoteIcon { submitCommentVote } comment maybeInteractions vote icon =
         , onClick (submitCommentVote comment.id vote)
         ]
         [ iconHtml ]
-
 
 
 commentActionButton : String -> msg -> StyledHtml msg
@@ -138,18 +148,18 @@ commentActionButton value msg =
         [ S.text value ]
 
 
-
-
 replyTextarea : Comment -> Effects msg -> StyledHtml msg
 replyTextarea comment effects =
     let
-        ( textAreaVisible, textAreaValue ) = comment.textAreaState
+        ( textAreaVisible, textAreaValue ) =
+            comment.textAreaState
 
         updateTextArea =
             \val ->
                 effects.updateComment
-                    { comment | textAreaState =
-                        Tuple.mapSecond (always val) comment.textAreaState
+                    { comment
+                        | textAreaState =
+                            Tuple.mapSecond (always val) comment.textAreaState
                     }
 
         textAreaAction =
@@ -157,15 +167,17 @@ replyTextarea comment effects =
 
         textArea =
             TextArea.replyTextArea comment updateTextArea
-            |> TextArea.toHtml textAreaAction
+                |> TextArea.toHtml textAreaAction
     in
     if textAreaVisible then
         textArea
-    else 
+
+    else
         S.text ""
 
 
-{-| 
+{-|
+
     @arg depth
         current depth of tree: From 0 -> n
 
@@ -183,21 +195,23 @@ replyTextarea comment effects =
 
     @arg commentMap
         a flattened hashmap that represents a recursive tree of comments (i.e. just like Reddit)
+
 -}
-viewComments
-    : Int
-   -> Effects msg
-   -> TimeFormatter
-   -> CommentPointers msg
-   -> CommentMap
-   -> Maybe Interactions
-   -> StyledHtml msg
+viewComments :
+    Int
+    -> Effects msg
+    -> TimeFormatter
+    -> CommentPointers msg
+    -> CommentMap
+    -> Maybe Interactions
+    -> StyledHtml msg
 viewComments depth effects formatter pointers commentMap maybeInteractions =
     let
         viewComments_ : Set Cuid -> StyledHtml msg
         viewComments_ pointerSet =
             if Set.isEmpty pointerSet then
                 S.text ""
+
             else
                 let
                     comments =
@@ -210,6 +224,7 @@ viewComments depth effects formatter pointers commentMap maybeInteractions =
                                 [ borderLeft3 (px 1) dotted (hex "#4ba9ff")
                                 ]
                             ]
+
                         else
                             [ border zero ]
                 in
@@ -217,7 +232,6 @@ viewComments depth effects formatter pointers commentMap maybeInteractions =
                     [ css <| paddingLeft (px 10) :: optionalBorderLeft
                     ]
                     (List.map viewSingleComment comments)
-
 
         -- this is embedded inside of view comments to
         -- take advantage of closures
@@ -228,9 +242,9 @@ viewComments depth effects formatter pointers commentMap maybeInteractions =
                     S.span [ css [ marginRight (px 10) ] ]
                         [ strongText <| Utils.getAuthorName comment
                         ]
-                
+
                 replyInfo =
-                    Async 
+                    Async
                         ( comment.replyIds
                         , comment.remoteReplyBuffer
                         , effects.loadRepliesForComment comment.id
@@ -240,12 +254,12 @@ viewComments depth effects formatter pointers commentMap maybeInteractions =
                     let
                         update =
                             effects.updateComment
-                                { comment | textAreaState =
-                                    Tuple.mapFirst not comment.textAreaState
+                                { comment
+                                    | textAreaState =
+                                        Tuple.mapFirst not comment.textAreaState
                                 }
                     in
                     commentActionButton "reply" update
-
 
                 -- Includes the folding icon
                 -- and upvote / downvote icons
@@ -261,6 +275,7 @@ viewComments depth effects formatter pointers commentMap maybeInteractions =
                         commentFoldingText =
                             if comment.isFolded then
                                 "[+]"
+
                             else
                                 "[-]"
 
@@ -274,7 +289,8 @@ viewComments depth effects formatter pointers commentMap maybeInteractions =
                             ]
 
                         updatedComment =
-                            { comment | isFolded = not comment.isFolded
+                            { comment
+                                | isFolded = not comment.isFolded
                             }
 
                         commentFoldingIcon =
@@ -287,10 +303,10 @@ viewComments depth effects formatter pointers commentMap maybeInteractions =
                                 ]
                                 [ S.text commentFoldingText ]
 
-
                         votingIcons =
                             if comment.isFolded then
                                 S.text ""
+
                             else
                                 let
                                     renderVoteIcon_ =
@@ -306,7 +322,6 @@ viewComments depth effects formatter pointers commentMap maybeInteractions =
                                     [ renderVoteIcon_ Up upOutlined
                                     , renderVoteIcon_ Down downOutlined
                                     ]
-
                     in
                     S.div [ css sidebarStyles ]
                         [ commentFoldingIcon
@@ -317,6 +332,7 @@ viewComments depth effects formatter pointers commentMap maybeInteractions =
                     if comment.isFolded then
                         [ S.div [ css [ marginBottom (px 10) ] ] []
                         ]
+
                     else
                         [ S.div [ css [ marginBottom (px 15) ] ]
                             [ S.div [ css [ overflowWrap breakWord ] ] [ primaryText comment.body ]
@@ -330,8 +346,10 @@ viewComments depth effects formatter pointers commentMap maybeInteractions =
                 [ viewCommentSidebar
                 , S.div [ css [ width (pct 100) ] ]
                     ([ authorName
-                    , secondaryText <| formatter comment.createdAt
-                    ] ++ maybeViewComment)
+                     , secondaryText <| formatter comment.createdAt
+                     ]
+                        ++ maybeViewComment
+                    )
                 ]
     in
     case pointers of
@@ -344,9 +362,9 @@ viewComments depth effects formatter pointers commentMap maybeInteractions =
                     let
                         loadMoreBtn =
                             link "load more comments"
-                            |> Btn.onClick fetchReplies
-                            |> Btn.toHtml
-                            |> fromUnstyled
+                                |> Btn.onClick fetchReplies
+                                |> Btn.toHtml
+                                |> fromUnstyled
                     in
                     S.div []
                         [ viewComments_ pointerSet
@@ -360,31 +378,34 @@ viewComments depth effects formatter pointers commentMap maybeInteractions =
                             [ secondaryText "loading ..." ]
                         ]
 
-                RemoteData.Failure error -> 
+                RemoteData.Failure error ->
                     S.div []
                         [ viewComments_ pointerSet
                         , S.text "error loading more comments"
                         ]
 
                 RemoteData.Success _ ->
-                    viewComments_ pointerSet 
+                    viewComments_ pointerSet
 
 
-
-viewCommentsSection
-    : Effects msg
+viewCommentsSection :
+    Effects msg
     -> TimeFormatter
     -> CommentTree
     -> User
     -> StyledHtml msg
 viewCommentsSection effects formatter { topLevelComments, comments } user =
     let
-        rootDepth = 0
+        rootDepth =
+            0
 
         maybeInteractions =
             case user of
-                Authenticated _ interactions _ -> Just interactions
-                Anonymous _ -> Nothing
+                Authenticated _ interactions _ ->
+                    Just interactions
+
+                Anonymous _ ->
+                    Nothing
     in
     S.div
         [ css [ marginLeft (px -10) ] ]
@@ -396,4 +417,3 @@ viewCommentsSection effects formatter { topLevelComments, comments } user =
             comments
             maybeInteractions
         ]
-

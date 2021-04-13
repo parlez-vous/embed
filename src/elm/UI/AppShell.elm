@@ -5,8 +5,8 @@ import Css exposing (..)
 import Css.Media as Media exposing (withMedia)
 import Css.ModernNormalize as NormalizeCss
 import Html exposing (Html)
+import Html.Styled as Styled exposing (fromUnstyled, toUnstyled)
 import Html.Styled.Attributes as Attr exposing (css)
-import Html.Styled as Styled exposing (toUnstyled, fromUnstyled)
 
 
 type alias MediaQueries =
@@ -38,13 +38,11 @@ mediumMediaQueries =
         ]
 
 
-
 largeMediaQueries : Style
 largeMediaQueries =
     withMedia [ Media.only Media.screen [ Media.minWidth (px 1008) ] ]
         [ maxWidth (px 800)
         ]
-
 
 
 mediaQueries : MediaQueries
@@ -56,7 +54,7 @@ mediaQueries =
     }
 
 
-appShell : Styled.Html msg -> Html msg 
+appShell : Styled.Html msg -> Html msg
 appShell contents =
     toUnstyled <|
         Styled.div
@@ -75,5 +73,3 @@ appShell contents =
             , fromUnstyled Ant.Css.defaultStyles
             , contents
             ]
-
-
